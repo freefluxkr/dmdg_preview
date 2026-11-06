@@ -1,0 +1,1922 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>REA × MCP Protocol Inspector | DMDG Great AI Live Lab</title>
+  <meta name="description" content="GitHub 33만 스타 REA와 Model Context Protocol(MCP) JSON-RPC 2.0 실시간 패킷 트레이서 및 증거 기반 역공학 시뮬레이터">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #060913;
+      --bg-card: rgba(13, 22, 41, 0.88);
+      --bg-card-hover: rgba(22, 36, 68, 0.95);
+      --bg-surface: #0a1122;
+      --border-color: rgba(56, 189, 248, 0.2);
+      --border-highlight: rgba(0, 242, 254, 0.6);
+      --cyan-neon: #00f2fe;
+      --cyan-glow: rgba(0, 242, 254, 0.45);
+      --emerald-neon: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.4);
+      --purple-neon: #a855f7;
+      --purple-glow: rgba(168, 85, 247, 0.4);
+      --amber-neon: #f59e0b;
+      --rose-neon: #f43f5e;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --font-ui: 'Outfit', 'Pretendard', -apple-system, sans-serif;
+      --font-code: 'Fira Code', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: radial-gradient(circle at 50% 0%, #102144 0%, var(--bg-base) 65%);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .bg-grid {
+      position: fixed; inset: 0;
+      background-image: 
+        linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 36px 36px;
+      pointer-events: none; z-index: 0;
+    }
+
+    /* Header */
+    header {
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: blur(16px);
+      background: rgba(6, 9, 19, 0.92);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 28px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .logo-badge {
+      width: 44px; height: 44px; border-radius: 10px;
+      background: linear-gradient(135deg, #00f2fe, #3b82f6);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 20px; color: #060913;
+      box-shadow: 0 0 24px var(--cyan-glow);
+    }
+    .brand-text h1 {
+      font-size: 18px; font-weight: 800; letter-spacing: -0.3px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .brand-text p { font-size: 12px; color: var(--text-muted); }
+
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+
+    .btn-toggle-sound {
+      padding: 6px 12px; border-radius: 8px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+      color: var(--text-muted); font-size: 12px; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-toggle-sound.active {
+      color: var(--cyan-neon); border-color: var(--cyan-neon); background: rgba(0,242,254,0.12);
+    }
+
+    .badge-live {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 14px; border-radius: 9999px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid var(--emerald-neon);
+      color: var(--emerald-neon); font-size: 12px; font-weight: 600; font-family: var(--font-code);
+    }
+    .pulse-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--emerald-neon);
+      box-shadow: 0 0 10px var(--emerald-neon);
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.3; transform: scale(0.8); }
+    }
+
+    .btn-book {
+      padding: 8px 16px; border-radius: 8px;
+      background: linear-gradient(135deg, rgba(0, 242, 254, 0.15), rgba(59, 130, 246, 0.15));
+      border: 1px solid var(--border-highlight);
+      color: var(--cyan-neon); font-size: 13px; font-weight: 600;
+      text-decoration: none; display: flex; align-items: center; gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .btn-book:hover {
+      background: linear-gradient(135deg, var(--cyan-neon), #3b82f6);
+      color: #060913; box-shadow: 0 0 20px var(--cyan-glow);
+    }
+
+    /* Main Container */
+    main {
+      position: relative; z-index: 10;
+      flex: 1; max-width: 1680px; margin: 0 auto;
+      padding: 18px 24px 30px; width: 100%;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+
+    /* Scenario Quick Bar */
+    .scenario-bar-wrap {
+      background: rgba(10, 18, 38, 0.85);
+      border: 1px solid rgba(0, 242, 254, 0.25);
+      border-radius: 12px; padding: 12px 18px;
+      display: flex; flex-direction: column; gap: 8px;
+      backdrop-filter: blur(12px);
+    }
+    .scenario-title {
+      font-size: 12px; font-weight: 800; color: var(--cyan-neon);
+      text-transform: uppercase; letter-spacing: 0.8px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .scenario-chips {
+      display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .scenario-btn {
+      padding: 8px 14px; border-radius: 8px;
+      background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);
+      color: #cbd5e1; font-size: 12.5px; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; gap: 6px; transition: all 0.2s ease;
+    }
+    .scenario-btn:hover {
+      background: rgba(0, 242, 254, 0.15); border-color: var(--cyan-neon);
+      color: #ffffff; transform: translateY(-1px);
+    }
+    .scenario-btn.active {
+      background: linear-gradient(135deg, rgba(0, 242, 254, 0.25), rgba(59, 130, 246, 0.3));
+      border-color: var(--cyan-neon); color: #ffffff;
+      box-shadow: 0 0 16px var(--cyan-glow);
+    }
+
+    /* Top Control Deck */
+    .control-deck {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px; padding: 16px 22px;
+      display: grid; grid-template-columns: 1.1fr 1.3fr 0.9fr;
+      gap: 18px; backdrop-filter: blur(12px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    }
+    @media (max-width: 1100px) {
+      .control-deck { grid-template-columns: 1fr; }
+    }
+
+    .deck-group { display: flex; flex-direction: column; gap: 8px; }
+    .deck-label {
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.8px; color: var(--cyan-neon);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .segment-bar {
+      display: flex; background: rgba(0, 0, 0, 0.45);
+      padding: 4px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.08); gap: 4px;
+    }
+    .segment-btn {
+      flex: 1; padding: 8px 10px; border-radius: 6px;
+      border: none; background: transparent; color: var(--text-muted);
+      font-size: 12.5px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 6px;
+      white-space: nowrap;
+    }
+    .segment-btn:hover:not(.active) { color: #ffffff; background: rgba(255,255,255,0.06); }
+    .segment-btn.active {
+      background: linear-gradient(135deg, rgba(0, 242, 254, 0.22), rgba(59, 130, 246, 0.28));
+      color: #ffffff; border: 1px solid var(--border-highlight);
+      box-shadow: 0 0 14px rgba(0, 242, 254, 0.3);
+    }
+
+    /* Agent CoT Banner */
+    .agent-cot-box {
+      background: rgba(10, 17, 34, 0.95);
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      border-radius: 10px; padding: 12px 18px;
+      font-size: 13px; font-family: var(--font-code);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      position: relative; overflow: hidden;
+    }
+    .cot-text { color: #e2e8f0; display: flex; align-items: center; gap: 10px; flex: 1; }
+    .cot-badge {
+      padding: 3px 8px; border-radius: 4px; font-size: 11px;
+      background: rgba(168, 85, 247, 0.25); color: var(--purple-neon);
+      font-weight: 700; white-space: nowrap;
+    }
+    .cot-action-indicator {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: var(--emerald-neon); font-weight: 600;
+    }
+
+    /* Tool Toolbar */
+    .tool-deck {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px; padding: 14px 20px;
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;
+      backdrop-filter: blur(12px);
+    }
+    .tool-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tool-chip {
+      padding: 9px 16px; border-radius: 8px;
+      background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text-muted); font-family: var(--font-code); font-size: 12.5px;
+      cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;
+    }
+    .tool-chip:hover:not(.active) { color: #ffffff; border-color: rgba(255,255,255,0.25); }
+    .tool-chip.active {
+      background: rgba(0, 242, 254, 0.18); border-color: var(--cyan-neon);
+      color: var(--cyan-neon); box-shadow: 0 0 16px var(--cyan-glow); font-weight: 700;
+    }
+
+    .tool-actions { display: flex; align-items: center; gap: 12px; }
+    .btn-run {
+      padding: 10px 24px; border-radius: 8px; border: none;
+      background: linear-gradient(135deg, var(--cyan-neon), #3b82f6);
+      color: #060913; font-size: 13.5px; font-weight: 800; cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+      box-shadow: 0 0 20px var(--cyan-glow); transition: all 0.2s ease;
+    }
+    .btn-run:hover { transform: translateY(-1px); box-shadow: 0 0 28px rgba(0, 242, 254, 0.7); }
+    .btn-run:active { transform: translateY(1px); }
+
+    .btn-secondary {
+      padding: 9px 16px; border-radius: 8px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+      color: var(--text-main); font-size: 12.5px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.12); }
+
+    /* 3-Column Inspection Layout */
+    .grid-inspector {
+      display: grid;
+      grid-template-columns: 340px 1.4fr 1fr;
+      gap: 18px; flex: 1; min-height: 600px;
+    }
+    @media (max-width: 1300px) {
+      .grid-inspector { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px; display: flex; flex-direction: column;
+      overflow: hidden; backdrop-filter: blur(12px);
+      box-shadow: 0 10px 32px rgba(0,0,0,0.35);
+    }
+
+    .panel-header {
+      padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0, 0, 0, 0.35); display: flex; align-items: center; justify-content: space-between;
+    }
+    .panel-title {
+      font-size: 13px; font-weight: 700; color: var(--text-main);
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .panel-body {
+      padding: 16px; flex: 1; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+
+    /* Sub-tabs in Center Panel */
+    .tab-bar {
+      display: flex; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding-bottom: 8px; margin-bottom: 8px;
+    }
+    .tab-btn {
+      padding: 5px 12px; border-radius: 6px; font-size: 12px;
+      background: transparent; border: 1px solid transparent; color: var(--text-dim);
+      font-weight: 600; cursor: pointer; transition: all 0.15s ease;
+    }
+    .tab-btn:hover { color: #ffffff; }
+    .tab-btn.active {
+      background: rgba(0, 242, 254, 0.12); border-color: var(--border-highlight);
+      color: var(--cyan-neon);
+    }
+
+    /* Form Fields */
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-label {
+      font-size: 11.5px; color: var(--text-muted); font-weight: 600;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .form-input {
+      background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px; padding: 9px 12px; color: var(--text-main);
+      font-family: var(--font-code); font-size: 12px; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-input:focus {
+      border-color: var(--cyan-neon); box-shadow: 0 0 10px rgba(0,242,254,0.25);
+    }
+    .slider-range { width: 100%; accent-color: var(--cyan-neon); cursor: pointer; }
+
+    /* Target Virtual File Tree */
+    .file-tree {
+      background: #040711; border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px; padding: 8px; font-family: var(--font-code); font-size: 11.5px;
+      display: flex; flex-direction: column; gap: 4px; max-height: 150px; overflow-y: auto;
+    }
+    .tree-item {
+      padding: 6px 10px; border-radius: 6px; cursor: pointer;
+      display: flex; align-items: center; justify-content: space-between;
+      color: var(--text-muted); transition: all 0.15s;
+    }
+    .tree-item:hover { background: rgba(255,255,255,0.06); color: #ffffff; }
+    .tree-item.active {
+      background: rgba(0, 242, 254, 0.16); color: var(--cyan-neon); font-weight: 700;
+      border-left: 3px solid var(--cyan-neon);
+    }
+
+    /* Stream Console */
+    .stream-console {
+      background: #03060f; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);
+      padding: 12px; flex: 1; font-family: var(--font-code); font-size: 12px;
+      overflow-y: auto; display: flex; flex-direction: column; gap: 8px; min-height: 380px;
+    }
+    .packet-card {
+      background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px; padding: 10px 14px; cursor: pointer;
+      transition: all 0.2s ease; display: flex; flex-direction: column; gap: 6px;
+    }
+    .packet-card:hover {
+      background: rgba(20, 32, 60, 0.95); border-color: rgba(56, 189, 248, 0.5);
+      transform: translateX(3px);
+    }
+    .packet-card.active {
+      border-color: var(--cyan-neon); background: rgba(0, 242, 254, 0.1);
+      box-shadow: 0 0 16px rgba(0,242,254,0.2);
+    }
+    .packet-head {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 11.5px;
+    }
+    .pkt-tag {
+      padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 10.5px;
+    }
+    .tag-req { background: rgba(0, 242, 254, 0.2); color: var(--cyan-neon); }
+    .tag-res { background: rgba(16, 185, 129, 0.2); color: var(--emerald-neon); }
+    .tag-err { background: rgba(244, 63, 94, 0.2); color: var(--rose-neon); }
+
+    .packet-summary {
+      color: #e2e8f0; font-size: 12px; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .packet-timing { font-size: 10.5px; color: var(--text-dim); }
+
+    /* Decompiler Split-View */
+    .split-decompiler {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px; flex: 1;
+    }
+    @media (max-width: 900px) { .split-decompiler { grid-template-columns: 1fr; } }
+
+    .code-box-wrap { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+    .code-box-title {
+      font-size: 11.5px; font-weight: 700; color: var(--text-dim);
+      display: flex; align-items: center; justify-content: space-between;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .code-box {
+      background: #02050c; border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px; padding: 12px; font-family: var(--font-code);
+      font-size: 11.5px; line-height: 1.6; overflow-x: auto; max-height: 320px; min-height: 220px;
+    }
+    .code-line {
+      display: block; padding: 2px 4px; border-radius: 3px; cursor: pointer; transition: background 0.15s;
+    }
+    .code-line:hover { background: rgba(255,255,255,0.08); }
+    .code-line.highlight { background: rgba(0, 242, 254, 0.2); border-left: 2px solid var(--cyan-neon); }
+
+    /* Metrics & Badges */
+    .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat-card {
+      background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;
+      transition: all 0.2s ease;
+    }
+    .stat-card:hover { border-color: rgba(0, 242, 254, 0.3); }
+    .stat-title { font-size: 11px; color: var(--text-dim); font-weight: 600; }
+    .stat-val {
+      font-size: 18px; font-weight: 800; font-family: var(--font-code); color: #ffffff;
+      display: flex; align-items: baseline; gap: 6px;
+    }
+    .stat-sub { font-size: 11px; color: var(--emerald-neon); }
+
+    .token-bar-wrap {
+      width: 100%; height: 8px; background: rgba(255,255,255,0.08);
+      border-radius: 9999px; overflow: hidden; margin-top: 4px;
+    }
+    .token-bar-fill {
+      height: 100%; width: 84.6%; background: linear-gradient(90deg, #10b981, #00f2fe);
+      border-radius: 9999px; transition: width 0.4s ease;
+    }
+
+    /* Hex Dump Viewer */
+    .hex-dump {
+      font-family: var(--font-code); font-size: 11px; line-height: 1.5;
+      background: #02050a; border: 1px solid rgba(255,255,255,0.08);
+      padding: 10px; border-radius: 8px; color: #94a3b8; overflow-x: auto;
+      max-height: 140px;
+    }
+    .hex-row { display: flex; gap: 8px; padding: 1px 0; }
+    .hex-addr { color: #64748b; width: 75px; }
+    .hex-bytes { color: var(--cyan-neon); font-weight: 500; flex: 1; }
+    .hex-ascii { color: #f8fafc; width: 90px; }
+
+    /* Live Pipeline Diagram */
+    .pipeline-visualizer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; border-radius: 8px; background: #030610;
+      border: 1px solid rgba(255,255,255,0.06); margin-top: 4px;
+    }
+    .pipe-node {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      font-size: 10.5px; color: var(--text-muted); font-family: var(--font-code);
+    }
+    .pipe-dot {
+      width: 12px; height: 12px; border-radius: 50%; background: #1e293b;
+      border: 2px solid #475569; transition: all 0.3s;
+    }
+    .pipe-dot.active {
+      background: var(--cyan-neon); border-color: #ffffff; box-shadow: 0 0 10px var(--cyan-glow);
+    }
+    .pipe-arrow { color: var(--text-dim); font-size: 12px; }
+
+    /* TDD Tests View */
+    .test-suite {
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .test-item {
+      padding: 10px 12px; border-radius: 8px;
+      background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: center; justify-content: space-between;
+      font-family: var(--font-code); font-size: 11.5px;
+    }
+    .test-pass { border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08); }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border-color); background: rgba(6, 9, 19, 0.95);
+      padding: 16px 28px; font-size: 13px; color: var(--text-dim);
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;
+      margin-top: auto;
+    }
+    .footer-links { display: flex; align-items: center; gap: 16px; }
+    .footer-links a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--cyan-neon); }
+
+    /* Header Guide Button */
+    .btn-help-guide {
+      padding: 7px 14px; border-radius: 8px;
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(0, 242, 254, 0.2));
+      border: 1px solid var(--purple-neon);
+      color: #ffffff; font-size: 12.5px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; gap: 6px;
+      box-shadow: 0 0 14px rgba(168, 85, 247, 0.35); transition: all 0.2s ease;
+    }
+    .btn-help-guide:hover {
+      background: linear-gradient(135deg, var(--purple-neon), var(--cyan-neon));
+      color: #060913; box-shadow: 0 0 24px rgba(168, 85, 247, 0.7);
+      transform: translateY(-1px);
+    }
+
+    /* Modal Overlay & Container (Rule 14) */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(4, 7, 16, 0.85); backdrop-filter: blur(14px);
+      display: none; align-items: center; justify-content: center;
+      padding: 20px; animation: fadeIn 0.25s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .modal-container {
+      background: rgba(11, 19, 38, 0.96);
+      border: 1px solid var(--border-highlight);
+      border-radius: 18px; max-width: 900px; width: 100%;
+      max-height: 90vh; display: flex; flex-direction: column;
+      box-shadow: 0 24px 60px rgba(0, 242, 254, 0.25), 0 0 40px rgba(168, 85, 247, 0.2);
+      overflow: hidden; animation: popUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes popUp {
+      from { transform: scale(0.92) translateY(20px); opacity: 0; }
+      to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    .modal-header {
+      padding: 20px 26px; border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: rgba(6, 10, 22, 0.6); display: flex; align-items: flex-start; justify-content: space-between;
+    }
+    .modal-title-group h2 {
+      font-size: 19px; font-weight: 800; color: #ffffff;
+      display: flex; align-items: center; gap: 10px; margin-top: 4px;
+    }
+    .modal-title-group p { font-size: 12.5px; color: var(--text-muted); margin-top: 3px; }
+    .modal-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 700; font-family: var(--font-code);
+      background: rgba(0, 242, 254, 0.15); color: var(--cyan-neon); border: 1px solid rgba(0,242,254,0.3);
+    }
+    .btn-modal-close {
+      background: transparent; border: 1px solid rgba(255,255,255,0.15);
+      color: var(--text-muted); width: 32px; height: 32px; border-radius: 8px;
+      font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .btn-modal-close:hover {
+      background: rgba(244, 63, 94, 0.2); border-color: var(--rose-neon); color: var(--rose-neon);
+    }
+
+    .modal-body {
+      padding: 22px 26px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;
+    }
+    .guide-sec-title {
+      font-size: 13.5px; font-weight: 800; color: var(--cyan-neon);
+      text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .guide-cards-grid-3 {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    }
+    @media (max-width: 768px) {
+      .guide-cards-grid-3 { grid-template-columns: 1fr; }
+    }
+    .guide-card {
+      background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px;
+    }
+    .guide-card .card-icon { font-size: 20px; margin-bottom: 2px; }
+    .guide-card h4 { font-size: 13px; font-weight: 700; color: #ffffff; }
+    .guide-card p { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+    .guide-step-row {
+      display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: center; gap: 8px;
+    }
+    @media (max-width: 768px) {
+      .guide-step-row { grid-template-columns: 1fr; }
+      .step-arrow { display: none; }
+    }
+    .guide-step-box {
+      background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px;
+    }
+    .step-num {
+      font-size: 10.5px; font-weight: 800; color: var(--cyan-neon); font-family: var(--font-code);
+    }
+    .guide-step-box strong { font-size: 12.5px; color: #ffffff; }
+    .guide-step-box p { font-size: 11.5px; color: var(--text-muted); line-height: 1.4; }
+    .step-arrow { color: var(--text-dim); font-size: 14px; text-align: center; }
+
+    .cheat-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    }
+    @media (max-width: 768px) {
+      .cheat-grid { grid-template-columns: 1fr; }
+    }
+    .cheat-item {
+      background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px;
+    }
+    .cheat-badge {
+      font-size: 11px; font-weight: 700; color: var(--cyan-neon); font-family: var(--font-code);
+    }
+    .cheat-item p { font-size: 11.5px; color: var(--text-muted); line-height: 1.4; }
+
+    .modal-footer {
+      padding: 16px 26px; border-top: 1px solid rgba(255,255,255,0.08);
+      background: rgba(6, 10, 22, 0.6); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px;
+    }
+    .chk-hide-today {
+      display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); cursor: pointer;
+    }
+    .chk-hide-today input { accent-color: var(--cyan-neon); }
+    .btn-start-sim {
+      padding: 11px 24px; border-radius: 8px; border: none;
+      background: linear-gradient(135deg, var(--cyan-neon), #3b82f6);
+      color: #060913; font-size: 13.5px; font-weight: 800; cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+      box-shadow: 0 0 20px var(--cyan-glow); transition: all 0.2s ease;
+    }
+    .btn-start-sim:hover {
+      transform: translateY(-1px); box-shadow: 0 0 28px rgba(0, 242, 254, 0.7);
+    }
+
+    /* Toast Notification */
+    .toast-box {
+      position: fixed; bottom: 24px; right: 24px; z-index: 100;
+      background: rgba(10, 18, 38, 0.95); border: 1px solid var(--cyan-neon);
+      color: #ffffff; padding: 12px 20px; border-radius: 8px;
+      box-shadow: 0 8px 30px rgba(0, 242, 254, 0.3); font-size: 13px;
+      display: none; align-items: center; gap: 10px; font-family: var(--font-code);
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="logo-badge">REA</div>
+      <div class="brand-text">
+        <h1>REA × MCP Protocol Inspector <span style="font-size:11.5px; padding:2px 8px; border-radius:4px; background:rgba(0,242,254,0.15); color:var(--cyan-neon); font-weight:700;">PROD v3.0 INTERACTIVE</span></h1>
+        <p>Model Context Protocol (JSON-RPC 2.0) 실시간 증거 기반 역공학 시뮬레이터</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-help-guide" id="btnOpenGuide" title="시뮬레이터 주요 기능 및 사용 안내 열기">
+        <span>📖 사용 안내</span>
+      </button>
+      <button class="btn-toggle-sound active" id="btnSoundToggle" title="음향 효과 켜기/끄기">
+        🔊 Sound FX: ON
+      </button>
+      <div class="badge-live">
+        <div class="pulse-dot"></div>
+        <span id="headerStatus">JSON-RPC 2.0 ACTIVE</span>
+      </div>
+      <a href="https://wikidocs.net/book/21781" target="_blank" class="btn-book">
+        <span>📗 Book 21781 공식 교재</span>
+        <span>↗</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main>
+    <!-- ⚡ Scenario Quick Bar (원클릭 시나리오 체험기) -->
+    <div class="scenario-bar-wrap">
+      <div class="scenario-title">
+        <span>🚀 원클릭 시나리오 체험기 (클릭 즉시 실시간 역공학 자동 파이프라인 구동)</span>
+        <span style="font-size:11px; color:var(--emerald-neon);">⚡ 5대 핵심 엔지니어링 케이스</span>
+      </div>
+      <div class="scenario-chips" id="scenarioChips">
+        <button class="scenario-btn active" data-scenario="calc">
+          <span>🎯 시나리오 1: calc.exe % 연산자 버그 역공학 (Ghidra PE)</span>
+        </button>
+        <button class="scenario-btn" data-scenario="notion">
+          <span>⚡ 시나리오 2: notion.asar Electron 세션 토큰 추출 (ASAR v4)</span>
+        </button>
+        <button class="scenario-btn" data-scenario="dino">
+          <span>🦖 시나리오 3: dino.wasm Chrome 공룡 속도 가속 알고리즘 (WASM)</span>
+        </button>
+        <button class="scenario-btn" data-scenario="aegis">
+          <span>📱 시나리오 4: aegis.apk OTP 생성기 역추출 (Android DEX)</span>
+        </button>
+        <button class="scenario-btn" data-scenario="healing">
+          <span>⚠️ 시나리오 5: Self-Healing 자율 오류 복구 (-32602 에러 자동 보정)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Top Control Deck -->
+    <div class="control-deck">
+      <!-- Group 1: AI Client -->
+      <div class="deck-group">
+        <label class="deck-label">
+          <span>🤖 1. AI 코딩 클라이언트 (Client)</span>
+          <span style="font-size:11px; color:var(--text-dim); font-weight:normal;" id="clientEngineLabel">DeepMind Agentic v2.0</span>
+        </label>
+        <div class="segment-bar" id="clientSelector">
+          <button class="segment-btn active" data-client="antigravity">Antigravity 2.0</button>
+          <button class="segment-btn" data-client="claude">Claude Code (CLI)</button>
+          <button class="segment-btn" data-client="cursor">Cursor IDE</button>
+        </div>
+      </div>
+
+      <!-- Group 2: Target Binary -->
+      <div class="deck-group">
+        <label class="deck-label">
+          <span>🎯 2. 분석 타깃 소프트웨어 (Target)</span>
+          <span style="font-size:11px; color:var(--text-dim); font-weight:normal;" id="targetFormatLabel">Win32 x86_64 PE</span>
+        </label>
+        <div class="segment-bar" id="targetSelector">
+          <button class="segment-btn active" data-target="calc">calc.exe (PE)</button>
+          <button class="segment-btn" data-target="notion">notion.asar</button>
+          <button class="segment-btn" data-target="dino">dino.wasm</button>
+          <button class="segment-btn" data-target="aegis">aegis.apk</button>
+        </div>
+      </div>
+
+      <!-- Group 3: Active Provider -->
+      <div class="deck-group">
+        <label class="deck-label">
+          <span>⚡ 3. 역공학 라우팅 프로바이더</span>
+          <span style="font-size:11px; color:var(--emerald-neon);" id="providerStatusLabel">CONNECTED</span>
+        </label>
+        <div class="segment-bar" id="providerSelector">
+          <button class="segment-btn active" data-provider="ghidra">Ghidra 12.1</button>
+          <button class="segment-btn" data-provider="ida">IDA Pro 9.0</button>
+          <button class="segment-btn" data-provider="ninja">Binary Ninja</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agent Live CoT (Thought Process) Stream -->
+    <div class="agent-cot-box">
+      <div class="cot-text">
+        <span class="cot-badge" id="cotAgentBadge">Antigravity Agent</span>
+        <span id="cotThought">"calc.exe의 % 연산자 바이너리 오프셋을 분석하기 위해 REA MCP 도구를 호출할 준비를 마쳤습니다."</span>
+      </div>
+      <div class="cot-action-indicator">
+        <span style="color:var(--text-dim);">Latency:</span>
+        <span id="pingVal" style="font-family:var(--font-code); color:var(--emerald-neon);">12ms</span>
+      </div>
+    </div>
+
+    <!-- Tool Selection Toolbar -->
+    <div class="tool-deck">
+      <div class="tool-chips" id="toolChips">
+        <button class="tool-chip active" data-tool="inspect_target">🔍 rea:inspect_target (타깃 스캔)</button>
+        <button class="tool-chip" data-tool="decompile_symbol">⚙️ rea:decompile_symbol (심볼 디컴파일)</button>
+        <button class="tool-chip" data-tool="intercept_packet">📡 rea:intercept_packet (실시간 패킷 스트림)</button>
+        <button class="tool-chip" data-tool="verify_cleanroom">🛡️ rea:verify_cleanroom (TDD 바이트 검증)</button>
+      </div>
+
+      <div class="tool-actions">
+        <label style="font-size:12px; color:var(--cyan-neon); display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <input type="checkbox" id="chkAutoRun" checked style="accent-color:var(--cyan-neon);">
+          <span>⚡ 클릭 시 즉시 실행 (Instant Auto-Run)</span>
+        </label>
+        <label style="font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <input type="checkbox" id="chkSimulateError" style="accent-color:var(--rose-neon);">
+          <span>에러 주입 (Self-Healing)</span>
+        </label>
+        <button class="btn-run" id="btnRunTool">
+          <span>▶ Execute Tool Call</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 3-Column Inspection Grid -->
+    <div class="grid-inspector">
+      <!-- Left Column: Tool Config & Virtual File Explorer -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">🛠️ Tool Parameters & Context</span>
+          <span style="font-size:11px; color:var(--cyan-neon); font-family:var(--font-code);">PARAMS</span>
+        </div>
+        <div class="panel-body">
+          <div class="form-group">
+            <label class="form-label">
+              <span>Target Symbol / Method</span>
+              <span id="paramTypeBadge" style="font-size:10px; padding:1px 5px; border-radius:3px; background:rgba(0,242,254,0.15); color:var(--cyan-neon);">Function</span>
+            </label>
+            <input type="text" class="form-input" id="paramSymbol" value="CalculatePercentage">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Target Memory Offset</label>
+            <input type="text" class="form-input" id="paramOffset" value="0x004012A0">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              <span>Smart Paging Chunk Size</span>
+              <span id="chunkLimitVal" style="color:var(--cyan-neon); font-family:var(--font-code);">1,024 tokens</span>
+            </label>
+            <input type="range" class="slider-range" id="chunkSlider" min="256" max="4096" step="256" value="1024">
+          </div>
+
+          <!-- Virtual Filesystem Structure -->
+          <div class="form-group" style="margin-top:2px;">
+            <label class="form-label">
+              <span>📦 Target Virtual File Structure</span>
+              <span style="font-size:10px; color:var(--emerald-neon);">Click to inspect node</span>
+            </label>
+            <div class="file-tree" id="virtualFileTree">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Pipeline Visualizer -->
+          <div class="form-group">
+            <label class="form-label">
+              <span>Live MCP Pipeline Flow</span>
+              <span style="font-size:10px; color:var(--text-dim);">JSON-RPC 2.0</span>
+            </label>
+            <div class="pipeline-visualizer">
+              <div class="pipe-node">
+                <div class="pipe-dot active" id="dotClient"></div>
+                <span>Client</span>
+              </div>
+              <span class="pipe-arrow">➔</span>
+              <div class="pipe-node">
+                <div class="pipe-dot active" id="dotMcp"></div>
+                <span>REA MCP</span>
+              </div>
+              <span class="pipe-arrow">➔</span>
+              <div class="pipe-node">
+                <div class="pipe-dot active" id="dotProvider"></div>
+                <span>Provider</span>
+              </div>
+              <span class="pipe-arrow">➔</span>
+              <div class="pipe-node">
+                <div class="pipe-dot active" id="dotVerify"></div>
+                <span>Verify</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:auto;">
+            <label class="form-label">Active Session ID</label>
+            <input type="text" class="form-input" readonly id="sessIdField" value="sess_rea_mcp_7f2b904c" style="opacity:0.65;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Center Column: Interactive JSON-RPC Stream & Split Decompiler -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="tab-bar" style="margin-bottom:0; padding-bottom:0; border:none;">
+            <button class="tab-btn active" id="tabBtnStream">📡 Live JSON-RPC Stream</button>
+            <button class="tab-btn" id="tabBtnDecompile">⚙️ Decompiler Split-View</button>
+            <button class="tab-btn" id="tabBtnPayload">📦 Packet Payload</button>
+            <button class="tab-btn" id="tabBtnTests">🛡️ TDD Test Suite</button>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn-secondary" id="btnClearLog" style="padding:4px 9px; font-size:11px;">Clear</button>
+            <button class="btn-secondary" id="btnCopyJson" style="padding:4px 9px; font-size:11px;">Copy JSON</button>
+          </div>
+        </div>
+
+        <div class="panel-body" style="padding:12px;">
+          <!-- View 1: Live Stream Cards -->
+          <div class="stream-console" id="streamConsole">
+            <!-- Populated via script -->
+          </div>
+
+          <!-- View 2: Split Decompiler -->
+          <div id="decompileView" style="display:none; flex-direction:column; gap:10px; flex:1;">
+            <div class="split-decompiler">
+              <div class="code-box-wrap">
+                <div class="code-box-title">
+                  <span>🔴 Raw Disassembly (Target)</span>
+                  <span id="asmArchLabel" style="font-size:10px; color:var(--rose-neon);">x86_64</span>
+                </div>
+                <div class="code-box" id="rawAsmBox">
+                  <!-- Populated via script -->
+                </div>
+              </div>
+              <div class="code-box-wrap">
+                <div class="code-box-title">
+                  <span>🟢 Clean-Room Recovered (C/TS)</span>
+                  <span style="font-size:10px; color:var(--emerald-neon);">100% Equivalence</span>
+                </div>
+                <div class="code-box" id="cleanSrcBox">
+                  <!-- Populated via script -->
+                </div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; font-size:11.5px; color:var(--text-muted); background:rgba(0,0,0,0.45); padding:8px 12px; border-radius:6px; font-family:var(--font-code);">
+              <div>
+                ✔ Equivalence: <span style="color:var(--emerald-neon);" id="decompileEquivLabel">4/4 Tests Passed (0.000% Delta)</span>
+              </div>
+              <button class="btn-secondary" id="btnRunTestsFromDecompile" style="padding:3px 10px; font-size:11px; color:var(--cyan-neon); border-color:var(--cyan-neon);">
+                ▶ Run TDD Equivalence Suite
+              </button>
+            </div>
+          </div>
+
+          <!-- View 3: Selected Packet Payload Inspector -->
+          <div id="payloadView" style="display:none; flex-direction:column; gap:8px; flex:1;">
+            <div class="code-box-title">
+              <span id="payloadCardTitle">Selected Packet JSON-RPC 2.0 Payload</span>
+              <button class="btn-secondary" id="btnCopySelectedPayload" style="padding:2px 8px; font-size:10.5px;">Copy</button>
+            </div>
+            <pre class="code-box" id="payloadJsonPre" style="max-height:360px; color:#38bdf8;"></pre>
+          </div>
+
+          <!-- View 4: TDD Equivalence Test Suite -->
+          <div id="testsView" style="display:none; flex-direction:column; gap:12px; flex:1;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:13px; font-weight:700;">🧪 Clean-Room Bytecode Verification Tests</span>
+              <button class="btn-run" id="btnRunTddSuite" style="padding:6px 14px; font-size:12px;">▶ Re-run All Tests</button>
+            </div>
+            <div class="test-suite" id="testSuiteList">
+              <div class="test-item test-pass">
+                <span>✔ TEST 1: Zero Division Guard (base === 0.0)</span>
+                <span style="color:var(--emerald-neon);">PASS (0.8ms)</span>
+              </div>
+              <div class="test-item test-pass">
+                <span>✔ TEST 2: IEEE 754 Floating Precision Exact Match</span>
+                <span style="color:var(--emerald-neon);">PASS (1.1ms)</span>
+              </div>
+              <div class="test-item test-pass">
+                <span>✔ TEST 3: Memory Offset Boundary Align Check</span>
+                <span style="color:var(--emerald-neon);">PASS (0.4ms)</span>
+              </div>
+              <div class="test-item test-pass">
+                <span>✔ TEST 4: Bytecode Hash Parity (Bit-for-Bit Delta 0.000%)</span>
+                <span style="color:var(--emerald-neon);">PASS (1.4ms)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Evidence & Token Metrics -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">🛡️ Evidence & Token Economy</span>
+          <span class="stat-badge" id="cleanroomBadge" style="padding:2px 8px; border-radius:4px; font-size:11px; background:rgba(16,185,129,0.2); color:var(--emerald-neon); font-weight:700;">100% VERIFIED</span>
+        </div>
+        <div class="panel-body">
+          <!-- Token Economy Card -->
+          <div class="stat-card">
+            <span class="stat-title">Token Reduction Efficiency</span>
+            <div class="stat-val">
+              <span id="statReduction">84.6%</span>
+              <span class="stat-sub">SAVED</span>
+            </div>
+            <div class="token-bar-wrap">
+              <div class="token-bar-fill" id="tokenBarFill"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-dim); margin-top:4px;">
+              <span>전체 덤프: 64,000 tok</span>
+              <span id="smartTokensLabel" style="color:var(--cyan-neon);">REA 페이징: 1,024 tok</span>
+            </div>
+          </div>
+
+          <!-- Evidence Hash Card -->
+          <div class="stat-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="stat-title">Cryptographic Evidence Hash</span>
+              <button class="btn-secondary" id="btnCopyHash" style="padding:1px 6px; font-size:10px;">Copy</button>
+            </div>
+            <div style="font-family:var(--font-code); font-size:11px; color:var(--cyan-neon); word-break:break-all; line-height:1.4; margin-top:4px;" id="statHash">
+              e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+            </div>
+            <div style="font-size:10.5px; color:var(--emerald-neon); margin-top:3px;">✔ SHA-256 Validated · Zero Hallucination Guaranteed</div>
+          </div>
+
+          <!-- Hex Dump Inspector -->
+          <div class="form-group">
+            <label class="form-label">
+              <span>Raw Byte Inspection (Hex Dump)</span>
+              <span style="font-size:10.5px; color:var(--cyan-neon);" id="hexAddrLabel">0x004012A0</span>
+            </label>
+            <div class="hex-dump" id="hexDumpViewer">
+              <!-- Populated via script -->
+            </div>
+          </div>
+
+          <!-- Cleanroom Certificate Card -->
+          <div class="stat-card" style="border-left:3px solid var(--purple-neon); background:rgba(168,85,247,0.06);">
+            <span class="stat-title" style="color:var(--purple-neon);">Cleanroom TDD Certificate</span>
+            <div style="font-size:11.5px; color:#e2e8f0; font-family:var(--font-code); line-height:1.6; margin-top:4px;" id="certSummary">
+              ✔ Provider: Ghidra 12.1 Headless<br>
+              ✔ Target: calc.exe (Win32 x86_64 PE)<br>
+              ✔ Logic Equivalence: 100% Verified<br>
+              ✔ Status: READY FOR ENTERPRISE DEPLOY
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Toast Notification -->
+  <div class="toast-box" id="toastBox">
+    <span id="toastIcon">⚡</span>
+    <span id="toastMsg">Action executed</span>
+  </div>
+
+  <!-- Onboarding / Help Guide Modal (Rule 14) -->
+  <div class="modal-overlay" id="guideModalOverlay">
+    <div class="modal-container" id="guideModalContainer">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-badge">RULE 14 ONBOARDING GUIDE</div>
+          <h2>⚡ REA × MCP Protocol Inspector 사용 안내</h2>
+          <p>《REA 완벽 마스터 가이드》(Book 21781) 제10장 연동 실시간 프로토콜 분석기</p>
+        </div>
+        <button class="btn-modal-close" id="btnCloseGuide" title="닫기">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Section 1: 핵심 목적 및 증명 원리 -->
+        <div class="guide-section">
+          <h3 class="guide-sec-title">🎯 시뮬레이터 핵심 목적 & 실무 가치</h3>
+          <div class="guide-cards-grid-3">
+            <div class="guide-card">
+              <div class="card-icon">🛡️</div>
+              <h4>제로 할루시네이션</h4>
+              <p>AI가 코드를 지어내지 않고, 실제 역공학 엔진(Ghidra/IDA)의 어셈블리 바이트를 MCP(JSON-RPC 2.0)로 증거 검증하여 100% 무결한 소스코드 복원</p>
+            </div>
+            <div class="guide-card">
+              <div class="card-icon">⚡</div>
+              <h4>토큰 84.6%~96.0% 절감</h4>
+              <p>수십 MB 바이너리를 통째로 LLM에 넣지 않고, Smart Paging(1,024 tok) 단위로 필요한 심볼만 압축 호출하여 API 비용 극소화</p>
+            </div>
+            <div class="guide-card">
+              <div class="card-icon">🧪</div>
+              <h4>TDD 클린룸 1:1 교차 검증</h4>
+              <p>복원된 C/TypeScript 코드가 원본 바이너리와 비트 단위로 일치하는지(0.000% Delta) 4대 유닛 테스트로 즉시 검증 및 인증서 발급</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: 3단계 초간단 실습 가이드 -->
+        <div class="guide-section">
+          <h3 class="guide-sec-title">🚀 3단계 초간단 실습 가이드 (Quick Start)</h3>
+          <div class="guide-step-row">
+            <div class="guide-step-box">
+              <span class="step-num">STEP 1</span>
+              <strong>상단 [5대 시나리오] 클릭</strong>
+              <p>calc.exe, notion.asar, dino.wasm 등 원하는 케이스를 누르면 즉시 자동 파이프라인 구동!</p>
+            </div>
+            <span class="step-arrow">➔</span>
+            <div class="guide-step-box">
+              <span class="step-num">STEP 2</span>
+              <strong>중앙 [4대 탭] 전환 확인</strong>
+              <p>패킷 스트림 ➔ 디컴파일러 분할 뷰 ➔ 패킷 페이로드 ➔ TDD 테스트 러너 결과 관찰</p>
+            </div>
+            <span class="step-arrow">➔</span>
+            <div class="guide-step-box">
+              <span class="step-num">STEP 3</span>
+              <strong>가상 파일 트리 & 헥스 탐색</strong>
+              <p>좌측 트리의 함수 노드를 클릭하여 심볼/오프셋/어셈블리/헥스 바이트가 실시간 동기화되는지 확인</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: 각 버튼별 실제 동작 치트시트 -->
+        <div class="guide-section">
+          <h3 class="guide-sec-title">🛠️ 각 버튼별 실제 동작 치트시트 (Zero-Dead-Click)</h3>
+          <div class="cheat-grid">
+            <div class="cheat-item">
+              <span class="cheat-badge">🤖 1. AI 클라이언트</span>
+              <p>Antigravity 2.0 / Claude Code / Cursor 전환 시 에이전트 생각(CoT), 지연시간(ms), 핸드셰이크 패킷 즉시 생성</p>
+            </div>
+            <div class="cheat-item">
+              <span class="cheat-badge">🎯 2. 타깃 소프트웨어</span>
+              <p>calc.exe, notion.asar, dino.wasm, aegis.apk 전환 시 가상 파일 트리, 메모리 오프셋, 헥스 덤프, 소스코드 일괄 교체</p>
+            </div>
+            <div class="cheat-item">
+              <span class="cheat-badge">⚡ 3. 라우팅 프로바이더</span>
+              <p>Ghidra 12.1 / IDA Pro 9.0 / Binary Ninja 전환 시 역공학 라우팅 엔진 및 클린룸 TDD 인증서 실시간 갱신</p>
+            </div>
+            <div class="cheat-item">
+              <span class="cheat-badge">🔍 rea:inspect_target</span>
+              <p>바이너리 PE/ELF 헤더, 섹션(.text, .rdata), SHA-256 암호학적 무결성 증거 해시 자동 스캔</p>
+            </div>
+            <div class="cheat-item">
+              <span class="cheat-badge">⚙️ rea:decompile_symbol</span>
+              <p>어셈블리 바이트코드와 C/TypeScript 클린룸 소스코드 1:1 디컴파일 분할 뷰어 자동 활성화 (호버 동기화)</p>
+            </div>
+            <div class="cheat-item">
+              <span class="cheat-badge">📡 rea:intercept_packet</span>
+              <p>AI와 MCP 서버 간 실시간 WebSocket/JSON-RPC 2.0 패킷 스트림 적재 (클릭 시 페이로드 인스펙터로 즉시 이동)</p>
+            </div>
+            <div class="cheat-item">
+              <span class="cheat-badge">🛡️ rea:verify_cleanroom</span>
+              <p>4대 TDD 유닛 테스트(Zero Guard, Float Match, Align, Byte Parity) 실시간 실행 및 비트 오차 0.000% 증명</p>
+            </div>
+            <div class="cheat-item">
+              <span class="cheat-badge">⚠️ 에러 주입 (Self-Healing)</span>
+              <p>강제 오프셋 오정렬(-32602) 에러를 주입하여 에이전트가 스스로 원인을 진단하고 자동 보정/재시도하는 자율 복구 시연</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <label class="chk-hide-today">
+          <input type="checkbox" id="chkHideGuideToday">
+          <span>오늘 하루 이 안내 팝업 다시 보지 않기</span>
+        </label>
+        <button class="btn-start-sim" id="btnStartSimFromModal">
+          <span>🚀 시뮬레이터 실습 시작하기 (시나리오 1 즉시 구동)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div>
+      <strong>당목담글(DMDG) 스튜디오 자율 에이전트 엔지니어링 본부</strong> · REA × MCP Official Live Simulator
+    </div>
+    <div class="footer-links">
+      <a href="https://dmdg-live.com/" target="_blank">🏛️ 공식 메인 포털</a>
+      <a href="https://wikidocs.net/book/21781" target="_blank">📗 REA 완벽 마스터 가이드 (Book 21781)</a>
+      <a href="https://wikidocs.net/book/21777" target="_blank">🚀 Antigravity IDE 완벽 가이드 (Book 21777)</a>
+      <a href="https://github.com/cleanroom-lab/rea-agents" target="_blank">🐙 GitHub (rea-agents)</a>
+    </div>
+  </footer>
+
+  <script>
+    // Audio Synthesizer (Cyberpunk feedback sound)
+    let soundEnabled = true;
+    let audioCtx = null;
+    function playBeep(freq = 600, type = 'sine', duration = 0.08) {
+      if (!soundEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch(e) {}
+    }
+
+    const btnSoundToggle = document.getElementById('btnSoundToggle');
+    btnSoundToggle.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      btnSoundToggle.classList.toggle('active', soundEnabled);
+      btnSoundToggle.innerText = soundEnabled ? '🔊 Sound FX: ON' : '🔈 Sound FX: OFF';
+      showToast(soundEnabled ? '음향 효과 활성화' : '음향 효과 비활성화', '🔊');
+    });
+
+    // Toast Manager
+    const toastBox = document.getElementById('toastBox');
+    const toastMsg = document.getElementById('toastMsg');
+    const toastIcon = document.getElementById('toastIcon');
+    let toastTimeout;
+    function showToast(msg, icon = '⚡') {
+      toastMsg.innerText = msg;
+      toastIcon.innerText = icon;
+      toastBox.style.display = 'flex';
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => { toastBox.style.display = 'none'; }, 2200);
+    }
+
+    // State Database
+    const state = {
+      client: 'antigravity',
+      target: 'calc',
+      provider: 'ghidra',
+      tool: 'inspect_target',
+      chunkSize: 1024,
+      simulateError: false,
+      autoRun: true,
+      activePacketId: 1,
+      packets: []
+    };
+
+    const targetSpecs = {
+      calc: {
+        name: 'calc.exe', format: 'Win32 x86_64 PE', defaultProvider: 'ghidra',
+        offset: '0x004012A0', symbol: 'CalculatePercentage', arch: 'x86_64',
+        files: [
+          { name: '📄 PE_HEADERS [.text: 0x00401000]', offset: '0x00401000', symbol: 'PE_Header' },
+          { name: '⚙️ fn_CalculatePercentage()', offset: '0x004012A0', symbol: 'CalculatePercentage' },
+          { name: '⚙️ fn_EvaluateExpression()', offset: '0x00401580', symbol: 'EvaluateExpression' },
+          { name: '📦 .rdata [String Constants]', offset: '0x00402000', symbol: 'String_Table' }
+        ],
+        hex: [
+          { addr: '004012A0:', bytes: '48 83 EC 28 48 89 4C 24 30', ascii: 'H..(H.L$0' },
+          { addr: '004012A9:', bytes: 'F2 0F 10 05 2E 1F 00 00 F2 0F', ascii: '..........' },
+          { addr: '004012B3:', bytes: '59 C1 F2 0F 11 05 22 1F 00 00', ascii: 'Y....."...' },
+          { addr: '004012BD:', bytes: '48 83 C4 28 C3 CC CC CC CC CC', ascii: 'H..(......' }
+        ],
+        asm: [
+          "; Function: CalculatePercentage (0x004012A0)",
+          "004012A0: push    rbp",
+          "004012A1: mov     rbp, rsp",
+          "004012A4: sub     rsp, 32",
+          "004012A8: movsd   qword ptr [rbp-8], xmm0",
+          "004012AD: movsd   qword ptr [rbp-16], xmm1",
+          "004012B2: ucomisd xmm1, qword ptr [__real@00000000]",
+          "004012BA: je      loc_zero_ret",
+          "004012C0: mulsd   xmm0, xmm1",
+          "004012C4: divsd   xmm0, qword ptr [__real@4059000000000000] ; 100.0",
+          "004012CC: leave",
+          "004012CD: ret"
+        ],
+        src: [
+          "// 100% Byte-Aligned Clean-Room Recovery",
+          "export function calculatePercentage(",
+          "  val: number, ",
+          "  base: number",
+          "): number {",
+          "  if (base === 0.0) {",
+          "    return 0.0; // Zero division guard",
+          "  }",
+          "  return (val * base) / 100.0;",
+          "}"
+        ]
+      },
+      notion: {
+        name: 'notion.asar', format: 'Electron ASAR v4 Package', defaultProvider: 'ghidra',
+        offset: '0x00018FA0', symbol: 'validateSessionToken', arch: 'v8-bytecode',
+        files: [
+          { name: '📄 package.json', offset: '0x00010000', symbol: 'Manifest' },
+          { name: '⚙️ main.js [Electron Main IPC]', offset: '0x00012000', symbol: 'Main_IPC' },
+          { name: '⚙️ validateSessionToken.js', offset: '0x00018FA0', symbol: 'validateSessionToken' },
+          { name: '📦 preload.js', offset: '0x00021000', symbol: 'Preload_Script' }
+        ],
+        hex: [
+          { addr: '00018FA0:', bytes: '7B 22 76 65 72 73 69 6F 6E 22', ascii: '{"version"' },
+          { addr: '00018FAA:', bytes: '3A 20 22 32 2E 34 2E 30 22 2C', ascii: ': "2.4.0",' },
+          { addr: '00018FB4:', bytes: '22 61 70 70 22 3A 20 7B 22 69', ascii: '"app": {"i' }
+        ],
+        asm: [
+          "// V8 Bytecode snippet: validateSessionToken",
+          "00018FA0: LdaNamedProperty a0, [0]",
+          "00018FA3: Star r0",
+          "00018FA5: TestNull r0",
+          "00018FA7: JumpIfFalse [12]",
+          "00018FA9: LdaFalse",
+          "00018FAB: Return"
+        ],
+        src: [
+          "// Clean-Room Reimplementation",
+          "export function validateSessionToken(token: string): boolean {",
+          "  if (!token || token.length < 32) return false;",
+          "  const [header, payload, sig] = token.split('.');",
+          "  return Boolean(header && payload && sig);",
+          "}"
+        ]
+      },
+      dino: {
+        name: 'dino.wasm', format: 'WebAssembly Binary (WASM v1)', defaultProvider: 'ninja',
+        offset: '0x000045B2', symbol: 'updateSpeed', arch: 'wasm-wat',
+        files: [
+          { name: '📄 WASM_HEADER [magic: \\0asm]', offset: '0x00000000', symbol: 'Wasm_Header' },
+          { name: '⚙️ $updateSpeed(delta: f32)', offset: '0x000045B2', symbol: 'updateSpeed' },
+          { name: '⚙️ $checkCollision(dist: f32)', offset: '0x00004810', symbol: 'checkCollision' },
+          { name: '📦 DataSection [HighScore: 99999]', offset: '0x00005100', symbol: 'Data_Constants' }
+        ],
+        hex: [
+          { addr: '000045B0:', bytes: '00 61 73 6D 01 00 00 00 01 08', ascii: '.asm......' },
+          { addr: '000045BA:', bytes: '02 60 00 00 60 01 7F 00 03 02', ascii: '.`..`.....' }
+        ],
+        asm: [
+          "(func $updateSpeed (param $delta f32) (result f32)",
+          "  local.get $delta",
+          "  f32.const 0.001",
+          "  f32.mul",
+          "  global.get $currentSpeed",
+          "  f32.add",
+          "  global.set $currentSpeed",
+          "  global.get $currentSpeed",
+          ")"
+        ],
+        src: [
+          "// WebAssembly Clean-Room Inversion",
+          "export function updateSpeed(delta: number, currentSpeed: number): number {",
+          "  const ACCELERATION = 0.001;",
+          "  return currentSpeed + (delta * ACCELERATION);",
+          "}"
+        ]
+      },
+      aegis: {
+        name: 'aegis.apk', format: 'Android Dalvik DEX / APK', defaultProvider: 'ghidra',
+        offset: '0x0012A340', symbol: 'generateTotpCode', arch: 'smali-dex',
+        files: [
+          { name: '📄 AndroidManifest.xml', offset: '0x00001000', symbol: 'Manifest' },
+          { name: '⚙️ classes.dex [OTP Core]', offset: '0x00120000', symbol: 'Dex_Core' },
+          { name: '⚙️ generateTotpCode(secret, time)', offset: '0x0012A340', symbol: 'generateTotpCode' },
+          { name: '📦 res/values/strings.xml', offset: '0x00140000', symbol: 'Strings' }
+        ],
+        hex: [
+          { addr: '0012A340:', bytes: '64 65 78 0A 30 33 39 00 E4 F1', ascii: 'dex.039...' },
+          { addr: '0012A34A:', bytes: '11 22 33 44 55 66 77 88 99 AA', ascii: '."3DUfw...' }
+        ],
+        asm: [
+          ".method public static generateTotp(Ljava/lang/String;J)I",
+          "    .registers 5",
+          "    invoke-static {p0, p1, p2}, Lcom/aegis/Crypto;->hmacSha1([BJ)[B",
+          "    move-result-object v0",
+          "    return v0",
+          ".end method"
+        ],
+        src: [
+          "// Modern TypeScript OTP Reimplementation",
+          "export function generateTotpCode(secret: Uint8Array, timeStep: number): number {",
+          "  const hmac = crypto.createHmac('sha1', secret);",
+          "  const buffer = Buffer.alloc(8);",
+          "  buffer.writeBigInt64BE(BigInt(timeStep));",
+          "  const digest = hmac.update(buffer).digest();",
+          "  const offset = digest[digest.length - 1] & 0xf;",
+          "  return (digest.readUInt32BE(offset) & 0x7fffffff) % 1000000;",
+          "}"
+        ]
+      }
+    };
+
+    const clientThoughts = {
+      antigravity: {
+        engine: 'DeepMind Agentic v2.0 (Orchestrator)',
+        thought: 'Antigravity IDE: "타깃 바이너리의 증거 메타데이터를 수집하고 자율 서브에이전트에게 정밀 디컴파일을 위임합니다."'
+      },
+      claude: {
+        engine: 'Anthropic Claude Code CLI (stdio IPC)',
+        thought: 'Claude Code: "REA MCP JSON-RPC 파이프라인과 stdio IPC 터미널 스트림을 초기화했습니다."'
+      },
+      cursor: {
+        engine: 'Cursor AI Shadow Workspace',
+        thought: 'Cursor: "코드베이스 인덱싱 완료. 추출된 C 심볼을 실시간 인라인 Diff 패치로 변환할 준비를 마쳤습니다."'
+      }
+    };
+
+    const providerNames = {
+      ghidra: 'Ghidra 12.1 Headless',
+      ida: 'IDA Pro 9.0 Headless',
+      ninja: 'Binary Ninja 4.0 BNIL'
+    };
+
+    // DOM References
+    const scenarioChips = document.querySelectorAll('#scenarioChips .scenario-btn');
+    const clientBtns = document.querySelectorAll('#clientSelector .segment-btn');
+    const targetBtns = document.querySelectorAll('#targetSelector .segment-btn');
+    const providerBtns = document.querySelectorAll('#providerSelector .segment-btn');
+    const toolChips = document.querySelectorAll('#toolChips .tool-chip');
+    const clientEngineLabel = document.getElementById('clientEngineLabel');
+    const targetFormatLabel = document.getElementById('targetFormatLabel');
+    const cotAgentBadge = document.getElementById('cotAgentBadge');
+    const cotThought = document.getElementById('cotThought');
+    const pingVal = document.getElementById('pingVal');
+    const paramSymbol = document.getElementById('paramSymbol');
+    const paramOffset = document.getElementById('paramOffset');
+    const chunkSlider = document.getElementById('chunkSlider');
+    const chunkLimitVal = document.getElementById('chunkLimitVal');
+    const virtualFileTree = document.getElementById('virtualFileTree');
+    const streamConsole = document.getElementById('streamConsole');
+    const btnRunTool = document.getElementById('btnRunTool');
+    const btnClearLog = document.getElementById('btnClearLog');
+    const btnCopyJson = document.getElementById('btnCopyJson');
+    const chkAutoRun = document.getElementById('chkAutoRun');
+    const chkSimulateError = document.getElementById('chkSimulateError');
+    const statReduction = document.getElementById('statReduction');
+    const tokenBarFill = document.getElementById('tokenBarFill');
+    const statHash = document.getElementById('statHash');
+    const hexDumpViewer = document.getElementById('hexDumpViewer');
+    const hexAddrLabel = document.getElementById('hexAddrLabel');
+    const rawAsmBox = document.getElementById('rawAsmBox');
+    const cleanSrcBox = document.getElementById('cleanSrcBox');
+    const smartTokensLabel = document.getElementById('smartTokensLabel');
+    const certSummary = document.getElementById('certSummary');
+    const asmArchLabel = document.getElementById('asmArchLabel');
+    const decompileEquivLabel = document.getElementById('decompileEquivLabel');
+    const btnRunTestsFromDecompile = document.getElementById('btnRunTestsFromDecompile');
+    const btnRunTddSuite = document.getElementById('btnRunTddSuite');
+    const btnCopyHash = document.getElementById('btnCopyHash');
+    const btnCopySelectedPayload = document.getElementById('btnCopySelectedPayload');
+
+    // Tabs
+    const tabBtnStream = document.getElementById('tabBtnStream');
+    const tabBtnDecompile = document.getElementById('tabBtnDecompile');
+    const tabBtnPayload = document.getElementById('tabBtnPayload');
+    const tabBtnTests = document.getElementById('tabBtnTests');
+    const decompileView = document.getElementById('decompileView');
+    const payloadView = document.getElementById('payloadView');
+    const testsView = document.getElementById('testsView');
+    const payloadJsonPre = document.getElementById('payloadJsonPre');
+
+    function switchCenterTab(tab) {
+      [tabBtnStream, tabBtnDecompile, tabBtnPayload, tabBtnTests].forEach(b => b.classList.remove('active'));
+      streamConsole.style.display = 'none';
+      decompileView.style.display = 'none';
+      payloadView.style.display = 'none';
+      testsView.style.display = 'none';
+
+      if (tab === 'stream') {
+        tabBtnStream.classList.add('active');
+        streamConsole.style.display = 'flex';
+      } else if (tab === 'decompile') {
+        tabBtnDecompile.classList.add('active');
+        decompileView.style.display = 'flex';
+      } else if (tab === 'payload') {
+        tabBtnPayload.classList.add('active');
+        payloadView.style.display = 'flex';
+        renderSelectedPayload();
+      } else if (tab === 'tests') {
+        tabBtnTests.classList.add('active');
+        testsView.style.display = 'flex';
+      }
+    }
+
+    tabBtnStream.addEventListener('click', () => { playBeep(520); switchCenterTab('stream'); });
+    tabBtnDecompile.addEventListener('click', () => { playBeep(580); switchCenterTab('decompile'); });
+    tabBtnPayload.addEventListener('click', () => { playBeep(640); switchCenterTab('payload'); });
+    tabBtnTests.addEventListener('click', () => { playBeep(700); switchCenterTab('tests'); });
+
+    // Client Selector
+    clientBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        playBeep(450);
+        clientBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.client = btn.dataset.client;
+        const info = clientThoughts[state.client];
+        clientEngineLabel.innerText = info.engine;
+        cotAgentBadge.innerText = btn.innerText;
+        cotThought.innerText = info.thought;
+        pingVal.innerText = `${Math.floor(Math.random() * 8 + 8)}ms`;
+        addPacketLog('req', `client/handshake`, { client: state.client, engine: info.engine });
+        showToast(`AI 클라이언트: ${btn.innerText} 선택`, '🤖');
+      });
+    });
+
+    // Target Selector
+    function selectTarget(targetKey) {
+      targetBtns.forEach(b => b.classList.toggle('active', b.dataset.target === targetKey));
+      state.target = targetKey;
+      const spec = targetSpecs[targetKey];
+
+      targetFormatLabel.innerText = spec.format;
+      paramSymbol.value = spec.symbol;
+      paramOffset.value = spec.offset;
+      hexAddrLabel.innerText = spec.offset;
+      asmArchLabel.innerText = spec.arch;
+
+      renderVirtualTree(spec);
+      renderHexDump(spec.hex);
+      renderCodeBoxes(spec.asm, spec.src);
+
+      statHash.innerText = generateMockHash();
+      certSummary.innerHTML = `
+        ✔ Provider: ${providerNames[state.provider]}<br>
+        ✔ Target: ${spec.name} (${spec.format})<br>
+        ✔ Logic Equivalence: 100% Verified<br>
+        ✔ Status: READY FOR ENTERPRISE DEPLOY
+      `;
+
+      addPacketLog('req', `target/load`, { target: spec.name, format: spec.format });
+    }
+
+    targetBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        playBeep(500);
+        selectTarget(btn.dataset.target);
+        showToast(`타깃 바이너리: ${targetSpecs[btn.dataset.target].name} 로드 완료`, '🎯');
+        if (state.autoRun) executeTool();
+      });
+    });
+
+    // Provider Selector
+    providerBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        playBeep(560);
+        providerBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.provider = btn.dataset.provider;
+        const pName = providerNames[state.provider];
+        certSummary.innerHTML = `
+          ✔ Provider: ${pName}<br>
+          ✔ Target: ${targetSpecs[state.target].name}<br>
+          ✔ Logic Equivalence: 100% Verified<br>
+          ✔ Status: READY FOR ENTERPRISE DEPLOY
+        `;
+        addPacketLog('req', `provider/switch`, { provider: pName });
+        showToast(`역공학 프로바이더: ${pName} 연결`, '⚡');
+      });
+    });
+
+    // Tool Selector
+    toolChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        playBeep(620);
+        toolChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        state.tool = chip.dataset.tool;
+        showToast(`도구 선택: rea:${state.tool}`, '🛠️');
+
+        if (state.autoRun) {
+          executeTool();
+        } else {
+          cotThought.innerText = `Agent selected tool: rea:${state.tool}. [Execute Tool Call] 버튼을 눌러 실행하세요.`;
+        }
+      });
+    });
+
+    // Virtual File Tree Rendering & Interaction
+    function renderVirtualTree(spec) {
+      virtualFileTree.innerHTML = spec.files.map((f, i) => `
+        <div class="tree-item ${i===1?'active':''}" data-symbol="${f.symbol}" data-offset="${f.offset}">
+          <span>${f.name}</span>
+          <span style="font-size:10px; color:var(--text-dim);">${f.offset}</span>
+        </div>
+      `).join('');
+
+      virtualFileTree.querySelectorAll('.tree-item').forEach(item => {
+        item.addEventListener('click', () => {
+          playBeep(650);
+          virtualFileTree.querySelectorAll('.tree-item').forEach(x => x.classList.remove('active'));
+          item.classList.add('active');
+          paramSymbol.value = item.dataset.symbol;
+          paramOffset.value = item.dataset.offset;
+          hexAddrLabel.innerText = item.dataset.offset;
+          cotThought.innerText = `Virtual Node 선택: ${item.querySelector('span').innerText} [${item.dataset.offset}]`;
+          showToast(`심볼 노드 포커스: ${item.dataset.symbol}`, '📦');
+          if (state.autoRun) executeTool();
+        });
+      });
+    }
+
+    // Hex Dump Rendering
+    function renderHexDump(hexRows) {
+      hexDumpViewer.innerHTML = hexRows.map(r => `
+        <div class="hex-row">
+          <span class="hex-addr">${r.addr}</span>
+          <span class="hex-bytes">${r.bytes}</span>
+          <span class="hex-ascii">${r.ascii}</span>
+        </div>
+      `).join('');
+    }
+
+    // Code Box Rendering
+    function renderCodeBoxes(asmLines, srcLines) {
+      rawAsmBox.innerHTML = asmLines.map((l, i) => 
+        `<span class="code-line" data-line="${i}">${l}</span>`
+      ).join('\n');
+
+      cleanSrcBox.innerHTML = srcLines.map((l, i) => 
+        `<span class="code-line" data-line="${i}">${l}</span>`
+      ).join('\n');
+
+      // Sync hover
+      rawAsmBox.querySelectorAll('.code-line').forEach(line => {
+        line.addEventListener('mouseenter', () => {
+          const idx = line.dataset.line;
+          const target = cleanSrcBox.querySelector(`.code-line[data-line="${idx}"]`);
+          if (target) target.classList.add('highlight');
+        });
+        line.addEventListener('mouseleave', () => {
+          cleanSrcBox.querySelectorAll('.code-line').forEach(x => x.classList.remove('highlight'));
+        });
+      });
+    }
+
+    // Slider
+    chunkSlider.addEventListener('input', (e) => {
+      state.chunkSize = e.target.value;
+      chunkLimitVal.innerText = `${parseInt(e.target.value).toLocaleString()} tokens`;
+      const reduction = (80 + (e.target.value / 4096) * 16).toFixed(1);
+      statReduction.innerText = `${reduction}%`;
+      tokenBarFill.style.width = `${reduction}%`;
+      smartTokensLabel.innerText = `REA 페이징: ${parseInt(e.target.value).toLocaleString()} tok`;
+    });
+
+    // Auto-Run & Error Toggle
+    chkAutoRun.addEventListener('change', (e) => {
+      state.autoRun = e.target.checked;
+      showToast(state.autoRun ? '⚡ 즉시 실행 모드 활성화' : '수동 실행 모드 전환', '⚡');
+    });
+
+    chkSimulateError.addEventListener('change', (e) => {
+      state.simulateError = e.target.checked;
+      cotThought.innerText = state.simulateError 
+        ? "⚠️ Warning: Self-Healing 시뮬레이션을 위해 강제 에러(-32602) 주입 모드가 켜졌습니다."
+        : "정상 도구 호출 모드로 복귀했습니다.";
+      showToast(state.simulateError ? '에러 주입 모드 ON' : '정상 실행 모드', '⚠️');
+    });
+
+    // Clear Log
+    btnClearLog.addEventListener('click', () => {
+      playBeep(350);
+      state.packets = [];
+      streamConsole.innerHTML = '<div style="color:var(--text-dim); text-align:center; padding:20px;">패킷 스트림이 초기화되었습니다.</div>';
+      cotThought.innerText = "로그가 초기화되었습니다.";
+      showToast('로그 초기화 완료', '🧹');
+    });
+
+    // Copy JSON
+    btnCopyJson.addEventListener('click', () => {
+      playBeep(750);
+      const activePkt = state.packets.find(p => p.id === state.activePacketId) || state.packets[state.packets.length - 1];
+      if (activePkt) {
+        navigator.clipboard.writeText(JSON.stringify(activePkt.payload, null, 2));
+        btnCopyJson.innerText = "Copied!";
+        setTimeout(() => btnCopyJson.innerText = "Copy JSON", 1500);
+        showToast('JSON 클립보드 복사 완료', '📋');
+      }
+    });
+
+    btnCopyHash.addEventListener('click', () => {
+      playBeep(750);
+      navigator.clipboard.writeText(statHash.innerText.trim());
+      showToast('SHA-256 증거 해시 복사 완료', '🔑');
+    });
+
+    btnCopySelectedPayload.addEventListener('click', () => {
+      playBeep(750);
+      navigator.clipboard.writeText(payloadJsonPre.innerText);
+      showToast('패킷 페이로드 복사 완료', '📦');
+    });
+
+    // Run Tests Actions
+    btnRunTestsFromDecompile.addEventListener('click', () => {
+      switchCenterTab('tests');
+      runTddAnimation();
+    });
+
+    btnRunTddSuite.addEventListener('click', () => {
+      runTddAnimation();
+    });
+
+    function runTddAnimation() {
+      playBeep(680);
+      const items = document.querySelectorAll('#testSuiteList .test-item');
+      items.forEach((item, idx) => {
+        item.style.opacity = '0.4';
+        item.classList.remove('test-pass');
+        const span = item.querySelectorAll('span')[1];
+        span.innerText = 'TESTING...';
+        span.style.color = 'var(--cyan-neon)';
+
+        setTimeout(() => {
+          playBeep(780 + idx * 40);
+          item.style.opacity = '1';
+          item.classList.add('test-pass');
+          span.innerText = `PASS (${(Math.random() * 1.2 + 0.3).toFixed(1)}ms)`;
+          span.style.color = 'var(--emerald-neon)';
+        }, (idx + 1) * 220);
+      });
+      setTimeout(() => {
+        showToast('4대 TDD 교차 검증 통과 (Delta 0.000%)', '🛡️');
+      }, 1000);
+    }
+
+    // Packet Logging Core
+    function addPacketLog(type, summary, payload) {
+      const newId = state.packets.length + 1;
+      const timing = `+${(Math.random() * 14 + 3).toFixed(1)}ms`;
+      const pkt = {
+        id: newId, type: type, time: timing, method: summary,
+        payload: {
+          jsonrpc: "2.0",
+          id: newId,
+          ...(type === 'req' ? { method: summary, params: payload } : { result: payload })
+        }
+      };
+
+      state.packets.push(pkt);
+      state.activePacketId = newId;
+
+      const card = document.createElement('div');
+      card.className = `packet-card active`;
+      card.dataset.id = newId;
+      card.innerHTML = `
+        <div class="packet-head">
+          <span class="pkt-tag ${type==='req'?'tag-req':type==='res'?'tag-res':'tag-err'}">#${newId} ${type.toUpperCase()}</span>
+          <span class="packet-timing">${timing}</span>
+        </div>
+        <div class="packet-summary">${summary}: ${JSON.stringify(payload).slice(0, 52)}...</div>
+      `;
+
+      document.querySelectorAll('.packet-card').forEach(c => c.classList.remove('active'));
+      streamConsole.appendChild(card);
+      streamConsole.scrollTop = streamConsole.scrollHeight;
+
+      card.addEventListener('click', () => {
+        playBeep(600);
+        document.querySelectorAll('.packet-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        state.activePacketId = newId;
+        renderSelectedPayload();
+        switchCenterTab('payload');
+      });
+    }
+
+    function renderSelectedPayload() {
+      const pkt = state.packets.find(p => p.id === state.activePacketId) || state.packets[state.packets.length - 1];
+      if (pkt) {
+        payloadJsonPre.innerText = JSON.stringify(pkt.payload, null, 2);
+      }
+    }
+
+    // Tool Call Execution Engine
+    btnRunTool.addEventListener('click', () => executeTool());
+
+    function executeTool() {
+      playBeep(540);
+      const spec = targetSpecs[state.target];
+      const toolName = `rea:${state.tool}`;
+
+      btnRunTool.style.transform = 'scale(0.97)';
+      btnRunTool.innerHTML = '<span>⏳ Executing Tool Call...</span>';
+
+      const reqParams = {
+        tool: toolName,
+        target: spec.name,
+        symbol: paramSymbol.value,
+        offset: paramOffset.value,
+        provider: providerNames[state.provider],
+        chunkSizeTokens: parseInt(state.chunkSize)
+      };
+
+      addPacketLog('req', `tools/call (${toolName})`, reqParams);
+      cotThought.innerText = `Calling ${providerNames[state.provider]} for ${spec.name} [${paramSymbol.value}]...`;
+
+      setTimeout(() => {
+        btnRunTool.style.transform = '';
+        btnRunTool.innerHTML = '<span>▶ Execute Tool Call</span>';
+
+        if (state.simulateError) {
+          playBeep(280, 'sawtooth', 0.2);
+          addPacketLog('err', `tools/call:error (-32602)`, {
+            code: -32602,
+            message: `Invalid params: Memory offset ${paramOffset.value} misaligned for ${spec.format}.`,
+            data: { selfHealingSuggestedOffset: "0x004012A4", autoRecoveryAvailable: true }
+          });
+          cotThought.innerText = "⚠️ [Self-Healing] 에이전트가 오프셋 오정렬 에러를 감지하고 0x004012A4로 자동 보정하여 재시도합니다.";
+          showToast('Self-Healing 자동 복구 가동 (-32602 에러)', '⚠️');
+          return;
+        }
+
+        playBeep(720, 'sine', 0.12);
+        let resPayload;
+
+        if (state.tool === 'inspect_target') {
+          resPayload = {
+            format: spec.format,
+            provider: providerNames[state.provider],
+            sections: [".text", ".rdata", ".data", ".pdata"],
+            evidence: { sha256: generateMockHash(), byteAlignment: "100%", status: "SCAN_COMPLETE" }
+          };
+          switchCenterTab('stream');
+          cotThought.innerText = `✔ ${spec.name} 타깃 정적/동적 메타데이터 스캔이 완료되었습니다.`;
+          showToast('타깃 바이너리 스캔 완료', '🔍');
+        } else if (state.tool === 'decompile_symbol') {
+          resPayload = {
+            symbol: paramSymbol.value,
+            offset: paramOffset.value,
+            evidence: { confidence: 0.999, rawBytes: spec.hex[0].bytes },
+            cleanroomCodeLength: spec.src.join('\n').length
+          };
+          switchCenterTab('decompile');
+          cotThought.innerText = `✔ 심볼 '${paramSymbol.value}'의 클린룸 소스코드가 분할 뷰어에 렌더링되었습니다.`;
+          showToast('클린룸 디컴파일 소스코드 생성 완료', '⚙️');
+        } else if (state.tool === 'intercept_packet') {
+          resPayload = {
+            channel: "WebSocket/CDP",
+            interceptedPacketsCount: 14,
+            trafficSample: "{\"event\":\"state_sync\",\"tick\":1042,\"offset\":\"" + paramOffset.value + "\"}"
+          };
+          switchCenterTab('stream');
+          cotThought.innerText = "✔ 실시간 WebSocket/IPC 패킷 14건을 인터셉트하여 버퍼에 적재했습니다.";
+          showToast('실시간 패킷 인터셉트 성공 (14건)', '📡');
+        } else {
+          resPayload = {
+            status: "TDD_EQUIVALENCE_MATCH",
+            unitTests: ["test_zero_division: PASS", "test_overflow: PASS", "test_byte_diff: 0.000%"],
+            evidenceHash: generateMockHash()
+          };
+          switchCenterTab('tests');
+          runTddAnimation();
+          cotThought.innerText = "✔ 클린룸 TDD 검증 통과! 바이트 불일치율 0.000% 인증서가 갱신되었습니다.";
+          showToast('클린룸 TDD 100% 무결성 검증 완료', '🛡️');
+        }
+
+        addPacketLog('res', `tools/call:result`, resPayload);
+        statHash.innerText = generateMockHash();
+      }, 350);
+    }
+
+    // Scenario Quick Presets
+    scenarioChips.forEach(btn => {
+      btn.addEventListener('click', () => {
+        playBeep(640);
+        scenarioChips.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const sc = btn.dataset.scenario;
+
+        if (sc === 'calc') {
+          chkSimulateError.checked = false;
+          state.simulateError = false;
+          selectTarget('calc');
+          setTool('decompile_symbol');
+          showToast('시나리오 1: calc.exe % 연산자 역공학 구동', '🎯');
+        } else if (sc === 'notion') {
+          chkSimulateError.checked = false;
+          state.simulateError = false;
+          selectTarget('notion');
+          setTool('decompile_symbol');
+          showToast('시나리오 2: notion.asar 세션 토큰 역추출 구동', '⚡');
+        } else if (sc === 'dino') {
+          chkSimulateError.checked = false;
+          state.simulateError = false;
+          selectTarget('dino');
+          setTool('decompile_symbol');
+          showToast('시나리오 3: dino.wasm 속도 가속 알고리즘 추출', '🦖');
+        } else if (sc === 'aegis') {
+          chkSimulateError.checked = false;
+          state.simulateError = false;
+          selectTarget('aegis');
+          setTool('verify_cleanroom');
+          showToast('시나리오 4: aegis.apk OTP 생성기 역추출 구동', '📱');
+        } else if (sc === 'healing') {
+          chkSimulateError.checked = true;
+          state.simulateError = true;
+          selectTarget('calc');
+          setTool('inspect_target');
+          showToast('시나리오 5: Self-Healing 자동 오류 복구 가동', '⚠️');
+        }
+      });
+    });
+
+    function setTool(toolKey) {
+      toolChips.forEach(c => c.classList.toggle('active', c.dataset.tool === toolKey));
+      state.tool = toolKey;
+      executeTool();
+    }
+
+    function generateMockHash() {
+      const chars = '0123456789abcdef';
+      let res = '';
+      for (let i = 0; i < 64; i++) res += chars[Math.floor(Math.random() * chars.length)];
+      return res;
+    }
+
+    // Guide Modal Controller (Rule 14)
+    const guideModalOverlay = document.getElementById('guideModalOverlay');
+    const btnOpenGuide = document.getElementById('btnOpenGuide');
+    const btnCloseGuide = document.getElementById('btnCloseGuide');
+    const btnStartSimFromModal = document.getElementById('btnStartSimFromModal');
+    const chkHideGuideToday = document.getElementById('chkHideGuideToday');
+
+    function openGuideModal() {
+      playBeep(620);
+      guideModalOverlay.style.display = 'flex';
+    }
+
+    function closeGuideModal() {
+      playBeep(450);
+      guideModalOverlay.style.display = 'none';
+      if (chkHideGuideToday && chkHideGuideToday.checked) {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        localStorage.setItem('dmdg_sim_mcp_guide_hide_date', todayStr);
+      }
+    }
+
+    btnOpenGuide.addEventListener('click', () => {
+      openGuideModal();
+    });
+
+    btnCloseGuide.addEventListener('click', () => {
+      closeGuideModal();
+    });
+
+    guideModalOverlay.addEventListener('click', (e) => {
+      if (e.target === guideModalOverlay) {
+        closeGuideModal();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && guideModalOverlay.style.display === 'flex') {
+        closeGuideModal();
+      }
+    });
+
+    btnStartSimFromModal.addEventListener('click', () => {
+      closeGuideModal();
+      // Trigger Scenario 1
+      const sc1Btn = document.querySelector('.scenario-btn[data-scenario="calc"]');
+      if (sc1Btn) sc1Btn.click();
+      showToast('🚀 시나리오 1 자동 시연이 시작되었습니다!', '⚡');
+    });
+
+    // Initialize Default State
+    function init() {
+      selectTarget('calc');
+      addPacketLog('req', `initialize (protocolVersion: 2024-11-05)`, {
+        clientInfo: { name: "Antigravity-IDE", version: "2.0.4" }
+      });
+      addPacketLog('res', `initialize:ack`, {
+        serverInfo: { name: "rea-agents-mcp", version: "1.0.8" },
+        capabilities: { tools: { listChanged: true } }
+      });
+      // Run initial inspect tool
+      executeTool();
+
+      // Check whether to show Rule 14 Onboarding Guide Modal
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const savedHideDate = localStorage.getItem('dmdg_sim_mcp_guide_hide_date');
+      if (savedHideDate !== todayStr) {
+        // Automatically open the guide modal on first visit of the day
+        setTimeout(() => {
+          openGuideModal();
+        }, 300);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

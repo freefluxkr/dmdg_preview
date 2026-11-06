@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>사내규정 & 법률/특허 지식 그래프 RAG 시뮬레이터 (GraphRAG × FastMCP) | DMDG Live Lab 29</title>
+  <meta name="description" content="단순 벡터 임베딩을 넘어 개념의 맥락과 인과관계를 스스로 추론하는 차세대 사내규정 & 법률/특허 지식 그래프 RAG 인터랙티브 시뮬레이터">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Outfit:wght@400;600;700;800&family=Pretendard:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #07090e;
+      --bg-card: rgba(13, 19, 33, 0.85);
+      --bg-card-hover: rgba(22, 32, 54, 0.95);
+      --border-color: rgba(56, 189, 248, 0.2);
+      --border-glow: rgba(0, 242, 254, 0.5);
+      --cyan-neon: #00f2fe;
+      --cyan-glow: rgba(0, 242, 254, 0.35);
+      --amber-neon: #f59e0b;
+      --emerald-neon: #10b981;
+      --purple-neon: #a855f7;
+      --rose-neon: #f43f5e;
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      --text-dim: #64748b;
+      --font-sans: 'Pretendard', -apple-system, sans-serif;
+      --font-code: 'Fira Code', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: radial-gradient(circle at 50% 0%, #0f172a 0%, var(--bg-dark) 75%);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Ambient Header */
+    header {
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: blur(16px);
+      background: rgba(7, 9, 14, 0.88);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--amber-neon);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      transition: all 0.2s ease;
+    }
+    .brand-back:hover {
+      background: rgba(245, 158, 11, 0.2);
+      transform: translateX(-2px);
+    }
+
+    .brand-title {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sim-badge {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 9px;
+      border-radius: 9999px;
+      background: linear-gradient(135deg, #06b6d4, #3b82f6);
+      color: #fff;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
+    }
+
+    .system-status-pills {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--emerald-neon);
+      box-shadow: 0 0 8px var(--emerald-neon);
+      animation: pulseDot 2s infinite ease-in-out;
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 480px;
+      height: calc(100vh - 64px);
+      position: relative;
+    }
+
+    @media (max-width: 1024px) {
+      main {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+    }
+
+    /* Left: Graph Canvas Visualizer */
+    .graph-pane {
+      position: relative;
+      background: #06080e;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #graphCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+    #graphCanvas:active {
+      cursor: grabbing;
+    }
+
+    .canvas-hud {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 10;
+    }
+    .hud-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+    }
+    .hud-stats {
+      font-size: 11px;
+      color: var(--text-sub);
+      background: rgba(13, 19, 33, 0.85);
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(8px);
+      pointer-events: auto;
+      width: fit-content;
+    }
+
+    .legend-box {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      background: rgba(13, 19, 33, 0.9);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 11px;
+      backdrop-filter: blur(10px);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      z-index: 10;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .canvas-controls {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      display: flex;
+      gap: 6px;
+      z-index: 10;
+    }
+    .ctrl-btn {
+      width: 32px;
+      height: 32px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 15px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+    .ctrl-btn:hover {
+      background: rgba(30, 41, 59, 0.9);
+      border-color: var(--cyan-neon);
+      transform: scale(1.05);
+    }
+
+    /* Right: Control & Inference Panel */
+    .control-pane {
+      background: rgba(10, 15, 26, 0.95);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 18px;
+      gap: 16px;
+    }
+
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--cyan-neon);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .preset-chip-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .preset-btn {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: #e2e8f0;
+      font-size: 12px;
+      text-align: left;
+      cursor: pointer;
+      line-height: 1.4;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+    .preset-btn:hover {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: var(--cyan-neon);
+      transform: translateX(3px);
+    }
+    .preset-btn.active {
+      background: rgba(6, 182, 212, 0.2);
+      border-color: var(--cyan-neon);
+      box-shadow: 0 0 12px var(--cyan-glow);
+    }
+    .preset-tag {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--amber-neon);
+      margin-bottom: 4px;
+      display: inline-block;
+    }
+
+    /* Query Box */
+    .query-box-wrapper {
+      display: flex;
+      gap: 8px;
+    }
+    .query-input {
+      flex: 1;
+      background: rgba(5, 8, 15, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: #fff;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .query-input:focus {
+      border-color: var(--cyan-neon);
+    }
+    .execute-btn {
+      background: linear-gradient(135deg, #0284c7, #06b6d4);
+      border: none;
+      border-radius: 10px;
+      padding: 0 16px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .execute-btn:hover {
+      opacity: 0.9;
+      transform: scale(1.02);
+    }
+
+    /* Cypher Query Box */
+    .code-console {
+      background: #05070d;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: var(--font-code);
+      font-size: 11px;
+      color: #38bdf8;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+
+    /* Comparison Box (Vector vs GraphRAG) */
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .comp-col {
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    .comp-col.vector {
+      background: rgba(244, 63, 94, 0.08);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+    .comp-col.vector h5 {
+      color: var(--rose-neon);
+      margin-bottom: 4px;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .comp-col.graph {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .comp-col.graph h5 {
+      color: var(--emerald-neon);
+      margin-bottom: 4px;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Multi-hop Reasoning Path Badge */
+    .hop-path-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      font-size: 11px;
+      font-family: var(--font-code);
+    }
+    .hop-node {
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid var(--border-color);
+      color: #38bdf8;
+      font-weight: 600;
+    }
+    .hop-arrow {
+      color: var(--amber-neon);
+      font-weight: bold;
+    }
+
+    /* MCP Packet Stream Log */
+    .mcp-log {
+      max-height: 110px;
+      overflow-y: auto;
+      background: #04060a;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 8px;
+      font-family: var(--font-code);
+      font-size: 10px;
+      color: #94a3b8;
+    }
+    .mcp-log-entry {
+      margin-bottom: 4px;
+    }
+    .mcp-log-entry.in { color: #a855f7; }
+    .mcp-log-entry.out { color: #10b981; }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient Header -->
+  <header>
+    <div class="brand-group">
+      <a href="./sim_master_hub.html" class="brand-back">
+        <span>←</span> <span>시뮬레이터 허브</span>
+      </a>
+      <div class="brand-title">
+        <span>⚖️ 사내규정 & 법률/특허 지식 그래프 RAG</span>
+        <span class="sim-badge">Sim #29</span>
+      </div>
+    </div>
+
+    <div class="system-status-pills">
+      <div class="status-pill" title="리눅스 Docker Neo4j 그래프 엔진 에뮬레이터 가동 중">
+        <div class="status-dot"></div>
+        <span>Neo4j Bolt :7687</span>
+      </div>
+      <div class="status-pill" title="Python FastMCP SSE / Stdio 프로토콜">
+        <span style="color: var(--purple-neon); font-weight: bold;">[MCP]</span>
+        <span>FastMCP v1.2</span>
+      </div>
+      <div class="status-pill" title="Antigravity IDE 2.0 연동 중">
+        <span style="color: var(--cyan-neon);">★</span>
+        <span>Antigravity Live</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workstation -->
+  <main>
+    <!-- Left: Interactive Graph Visualization -->
+    <div class="graph-pane">
+      <canvas id="graphCanvas"></canvas>
+
+      <!-- HUD Top Info -->
+      <div class="canvas-hud">
+        <div class="hud-title">
+          <span>🌐 Dynamic Knowledge Graph Canvas</span>
+        </div>
+        <div class="hud-stats" id="graphStats">
+          노드: 14개 | 관계(엣지): 18개 | 활성 다중홉 추론: 대기 중
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="legend-box">
+        <div class="legend-item">
+          <div class="legend-color" style="background: #f43f5e;"></div>
+          <span>🏛️ 사내규정 (Regulation)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #3b82f6;"></div>
+          <span>⚖️ 법률/컴플라이언스 (Law)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #10b981;"></div>
+          <span>📜 특허/라이선스 (License)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #f59e0b;"></div>
+          <span>💻 소프트웨어 자산 (Artifact)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #a855f7;"></div>
+          <span>👥 심의기구/주체 (Authority)</span>
+        </div>
+      </div>
+
+      <!-- Canvas Controls -->
+      <div class="canvas-controls">
+        <button class="ctrl-btn" onclick="zoomIn()" title="확대">+</button>
+        <button class="ctrl-btn" onclick="zoomOut()" title="축소">-</button>
+        <button class="ctrl-btn" onclick="resetView()" title="원래 위치">⟲</button>
+      </div>
+    </div>
+
+    <!-- Right: Reasoning & Control Panel -->
+    <div class="control-pane">
+      
+      <!-- Preset Scenarios -->
+      <div class="section-card">
+        <div class="section-title">
+          <span>🎯 사내 실무 질문 시나리오 (One-Click)</span>
+          <span style="font-size: 11px; color: var(--text-dim);">클릭 시 즉시 추론</span>
+        </div>
+        <div class="preset-chip-list">
+          <button class="preset-btn active" onclick="loadScenario(0)">
+            <span class="preset-tag">특허/라이선스 컴플라이언스</span>
+            <div>"개발팀이 오픈소스 GPL-3.0 라이브러리를 사내 상용 솔루션에 포함할 때 어떤 승인 절차와 특허 심사를 거쳐야 하는가?"</div>
+          </button>
+          <button class="preset-btn" onclick="loadScenario(1)">
+            <span class="preset-tag">직무발명 & 보상금 지급</span>
+            <div>"연구원이 개인 시간에 개발한 LLM 프롬프트 최적화 알고리즘에 대한 사내 직무발명 승계 절차 및 보상금 규정은?"</div>
+          </button>
+          <button class="preset-btn" onclick="loadScenario(2)">
+            <span class="preset-tag">개인정보 & 영업비밀 유출 방지</span>
+            <div>"고객 상담 로그를 사외 오픈 API 모델로 전송할 때 충돌하는 사내 보안 규정과 개인정보보호법상 형사 책임 조항은?"</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Natural Query Input -->
+      <div class="section-card">
+        <div class="section-title">
+          <span>💬 실시간 GraphRAG 질문 입력</span>
+        </div>
+        <div class="query-box-wrapper">
+          <input type="text" id="userQueryInput" class="query-input" value="오픈소스 GPL-3.0 코드 사용 시 사내 지식재산위원회 승인 및 특허 위험 분석">
+          <button class="execute-btn" onclick="runGraphRAGInference()">
+            <span>추론 실행</span> <span>➔</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Generated Cypher Query -->
+      <div class="section-card">
+        <div class="section-title">
+          <span>⚙️ FastMCP 생성 Cypher 쿼리 (Neo4j)</span>
+          <span style="font-size: 10px; color: var(--emerald-neon);">⚡ 2-Hop Path Query</span>
+        </div>
+        <div class="code-console" id="cypherConsole">
+MATCH (src:Artifact {name: '사내 LLM 솔루션'})-[r1:INCORPORATES]->(lib:License {name: 'GPL-3.0'})
+MATCH (lib)-[r2:GOVERNED_BY]->(reg:Regulation {name: '오픈소스반입지침'})
+MATCH (reg)-[r3:REQUIRES_APPROVAL]->(auth:Authority {name: '지식재산심의위원회'})
+RETURN src, r1, lib, r2, reg, r3, auth</div>
+      </div>
+
+      <!-- Multi-Hop Reasoning Path -->
+      <div class="section-card">
+        <div class="section-title">
+          <span>🔗 그래프 다단계 추론 체인 (Multi-Hop Chain)</span>
+        </div>
+        <div class="hop-path-container" id="hopPathDisplay">
+          <span class="hop-node">사내 LLM 솔루션</span>
+          <span class="hop-arrow">-[:INCORPORATES]➔</span>
+          <span class="hop-node">GPL-3.0</span>
+          <span class="hop-arrow">-[:GOVERNED_BY]➔</span>
+          <span class="hop-node">오픈소스반입지침</span>
+          <span class="hop-arrow">-[:REQUIRES_APPROVAL]➔</span>
+          <span class="hop-node">지식재산심의위원회</span>
+        </div>
+      </div>
+
+      <!-- Comparison: Vector RAG vs GraphRAG -->
+      <div class="section-card">
+        <div class="section-title">
+          <span>⚖️ 기존 벡터 RAG vs 지식 그래프 RAG 비교</span>
+        </div>
+        <div class="comparison-grid">
+          <div class="comp-col vector">
+            <h5>❌ 단순 벡터 검색 (Vector-only)</h5>
+            <p id="vectorResultText">
+              "GPL-3.0 정의 조항과 취업규칙 일부 문장만 검색됨. 상용 배포 시 소스코드 공개 의무가 심의위원회 승인 안건이라는 2-Hop 인과관계를 놓쳐 <b>환각(Hallucination) 및 누락 발생</b>."
+            </p>
+          </div>
+          <div class="comp-col graph">
+            <h5>✅ 지식 그래프 RAG (GraphRAG)</h5>
+            <p id="graphResultText">
+              "<b>오픈소스반입지침 제12조</b>에 따라 상용 솔루션 배포 14일 전 <b>지식재산심의위원회</b>의 전원 합의 승인이 필수이며, 특허 침해 방지 조항(부정경쟁방지법)과 연계된 <b>완벽한 컴플라이언스 체인</b> 인출 성공!"
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- FastMCP Protocol Packet Monitor -->
+      <div class="section-card">
+        <div class="section-title">
+          <span>📡 FastMCP JSON-RPC 2.0 패킷 트레이서</span>
+          <span style="font-size: 10px; color: var(--purple-neon);">Stdio / SSE</span>
+        </div>
+        <div class="mcp-log" id="mcpLogContainer">
+          <div class="mcp-log-entry in">[IN] {"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "query_graphrag", "arguments": {"domain": "compliance"}}}</div>
+          <div class="mcp-log-entry out">[OUT] {"jsonrpc": "2.0", "result": {"path_length": 3, "entities": ["GPL-3.0", "지식재산심의위원회"], "status": "APPROVED_CHAIN"}}</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    // ----------------------------------------------------
+    // Knowledge Graph Data (사내규정, 법률, 특허, 소프트웨어)
+    // ----------------------------------------------------
+    const GRAPH_DATA = {
+      nodes: [
+        { id: 'art_llm', name: '사내 LLM 솔루션', type: 'Artifact', color: '#f59e0b', radius: 24, x: 200, y: 350 },
+        { id: 'lib_gpl', name: 'GPL-3.0', type: 'License', color: '#10b981', radius: 22, x: 350, y: 250 },
+        { id: 'lib_mit', name: 'MIT 라이선스', type: 'License', color: '#10b981', radius: 20, x: 220, y: 180 },
+        { id: 'reg_oss', name: '오픈소스반입지침', type: 'Regulation', color: '#f43f5e', radius: 22, x: 480, y: 210 },
+        { id: 'auth_ip', name: '지식재산심의위원회', type: 'Authority', color: '#a855f7', radius: 26, x: 620, y: 270 },
+        { id: 'law_copy', name: '저작권법 136조', type: 'Law', color: '#3b82f6', radius: 20, x: 500, y: 110 },
+        { id: 'pat_algo', name: 'AI 최적화 특허', type: 'License', color: '#10b981', radius: 22, x: 420, y: 450 },
+        { id: 'reg_invent', name: '직무발명보상규정', type: 'Regulation', color: '#f43f5e', radius: 24, x: 580, y: 440 },
+        { id: 'law_patent', name: '발명진흥법 15조', type: 'Law', color: '#3b82f6', radius: 20, x: 740, y: 470 },
+        { id: 'auth_hr', name: '인사보상위원회', type: 'Authority', color: '#a855f7', radius: 22, x: 700, y: 360 },
+        { id: 'data_cust', name: '고객 상담 음성로그', type: 'Artifact', color: '#f59e0b', radius: 22, x: 200, y: 530 },
+        { id: 'reg_sec', name: '정보보안관리규칙', type: 'Regulation', color: '#f43f5e', radius: 24, x: 360, y: 570 },
+        { id: 'law_priv', name: '개인정보보호법 29조', type: 'Law', color: '#3b82f6', radius: 24, x: 530, y: 600 },
+        { id: 'law_trade', name: '부정경쟁방지법(영업비밀)', type: 'Law', color: '#3b82f6', radius: 22, x: 690, y: 580 }
+      ],
+      links: [
+        { source: 'art_llm', target: 'lib_gpl', label: 'INCORPORATES', highlight: true },
+        { source: 'art_llm', target: 'lib_mit', label: 'INCORPORATES', highlight: false },
+        { source: 'lib_gpl', target: 'reg_oss', label: 'GOVERNED_BY', highlight: true },
+        { source: 'reg_oss', target: 'auth_ip', label: 'REQUIRES_APPROVAL', highlight: true },
+        { source: 'reg_oss', target: 'law_copy', label: 'COMPLIES_WITH', highlight: false },
+        { source: 'art_llm', target: 'pat_algo', label: 'EMBODIES', highlight: false },
+        { source: 'pat_algo', target: 'reg_invent', label: 'GOVERNED_BY', highlight: false },
+        { source: 'reg_invent', target: 'law_patent', label: 'STATUTORY_BASIS', highlight: false },
+        { source: 'reg_invent', target: 'auth_hr', label: 'DELIBERATED_BY', highlight: false },
+        { source: 'auth_ip', target: 'auth_hr', label: 'COOPERATES_WITH', highlight: false },
+        { source: 'data_cust', target: 'reg_sec', label: 'CLASSIFIED_BY', highlight: false },
+        { source: 'reg_sec', target: 'law_priv', label: 'MANDATED_BY', highlight: false },
+        { source: 'reg_sec', target: 'law_trade', label: 'SAFEGUARDS', highlight: false },
+        { source: 'art_llm', target: 'reg_sec', label: 'SUBJECT_TO', highlight: false },
+        { source: 'reg_oss', target: 'law_trade', label: 'RISK_CONTAINMENT', highlight: false }
+      ]
+    };
+
+    // ----------------------------------------------------
+    // Scenario Presets
+    // ----------------------------------------------------
+    const SCENARIOS = [
+      {
+        query: "개발팀이 오픈소스 GPL-3.0 라이브러리를 사내 상용 솔루션에 포함할 때 어떤 승인 절차와 특허 심사를 거쳐야 하는가?",
+        activeHops: ['art_llm', 'lib_gpl', 'reg_oss', 'auth_ip'],
+        activeLinks: ['art_llm-lib_gpl', 'lib_gpl-reg_oss', 'reg_oss-auth_ip'],
+        cypher: `MATCH (src:Artifact {name: '사내 LLM 솔루션'})-[r1:INCORPORATES]->(lib:License {name: 'GPL-3.0'})\nMATCH (lib)-[r2:GOVERNED_BY]->(reg:Regulation {name: '오픈소스반입지침'})\nMATCH (reg)-[r3:REQUIRES_APPROVAL]->(auth:Authority {name: '지식재산심의위원회'})\nRETURN src, r1, lib, r2, reg, r3, auth`,
+        hops: ['사내 LLM 솔루션', '-[:INCORPORATES]➔', 'GPL-3.0', '-[:GOVERNED_BY]➔', '오픈소스반입지침', '-[:REQUIRES_APPROVAL]➔', '지식재산심의위원회'],
+        vector: "GPL-3.0 정의 조항과 취업규칙 일부 문장만 파편적으로 검색됨. 상용 배포 시 소스코드 공개 의무가 심의위원회 승인 안건이라는 2-Hop 인과관계를 놓쳐 환각 및 절차 누락 발생.",
+        graph: "오픈소스반입지침 제12조에 따라 상용 솔루션 배포 14일 전 지식재산심의위원회의 전원 합의 승인이 필수이며, 특허 침해 방지 조항(부정경쟁방지법)과 연계된 완벽한 컴플라이언스 체인 인출 성공!",
+        mcpAction: 'query_graphrag(entity="GPL-3.0", relation="REQUIRES_APPROVAL")'
+      },
+      {
+        query: "연구원이 개인 시간에 개발한 LLM 프롬프트 최적화 알고리즘에 대한 사내 직무발명 승계 절차 및 보상금 규정은?",
+        activeHops: ['pat_algo', 'reg_invent', 'law_patent', 'auth_hr'],
+        activeLinks: ['pat_algo-reg_invent', 'reg_invent-law_patent', 'reg_invent-auth_hr'],
+        cypher: `MATCH (pat:License {name: 'AI 최적화 특허'})-[r1:GOVERNED_BY]->(reg:Regulation {name: '직무발명보상규정'})\nMATCH (reg)-[r2:STATUTORY_BASIS]->(law:Law {name: '발명진흥법 15조'})\nMATCH (reg)-[r3:DELIBERATED_BY]->(auth:Authority {name: '인사보상위원회'})\nRETURN pat, reg, law, auth`,
+        hops: ['AI 최적화 특허', '-[:GOVERNED_BY]➔', '직무발명보상규정', '-[:DELIBERATED_BY]➔', '인사보상위원회', '-[:STATUTORY_BASIS]➔', '발명진흥법 15조'],
+        vector: "발명진흥법 일반 정의만 검색되어, 회사가 승계를 포기했을 때 연구원 개인 명의 출원 권리가 있는지 등 사내 규정 연동 규정을 놓침.",
+        graph: "직무발명보상규정 제7조에 의해 발명 통지 후 4개월 이내 인사보상위원회에서 승계 여부를 확정해야 하며, 발명진흥법 제15조에 의한 정당한 출원보상금(150만 원) 즉시 지급 체인 인출 완료!",
+        mcpAction: 'query_graphrag(entity="AI 최적화 특허", hops=3)'
+      },
+      {
+        query: "고객 상담 로그를 사외 오픈 API 모델로 전송할 때 충돌하는 사내 보안 규정과 개인정보보호법상 형사 책임 조항은?",
+        activeHops: ['data_cust', 'reg_sec', 'law_priv', 'law_trade'],
+        activeLinks: ['data_cust-reg_sec', 'reg_sec-law_priv', 'reg_sec-law_trade'],
+        cypher: `MATCH (d:Artifact {name: '고객 상담 음성로그'})-[r1:CLASSIFIED_BY]->(sec:Regulation {name: '정보보안관리규칙'})\nMATCH (sec)-[r2:MANDATED_BY]->(priv:Law {name: '개인정보보호법 29조'})\nMATCH (sec)-[r3:SAFEGUARDS]->(trade:Law {name: '부정경쟁방지법(영업비밀)'})\nRETURN d, sec, priv, trade`,
+        hops: ['고객 상담 음성로그', '-[:CLASSIFIED_BY]➔', '정보보안관리규칙', '-[:MANDATED_BY]➔', '개인정보보호법 29조', '&&', '부정경쟁방지법'],
+        vector: "개인정보 동의서 샘플 문서만 검색되고, 사외 LLM API 전송 행위가 정보보안규칙상 '기밀 1등급 무단 반출' 및 부정경쟁방지법상 영업비밀 침해로 연계된다는 추론 실패.",
+        graph: "상담 로그 내 가명처리 미실시 시 개인정보보호법 제29조(안전조치의무 위반) 및 정보보안관리규칙 5조 위반으로 징계위원회 회부 및 형사고발 위험이 즉각 교차 식별됨!",
+        mcpAction: 'query_graphrag(entity="고객 상담 음성로그", filter="SECURITY_LEAK")'
+      }
+    ];
+
+    let currentScenarioIdx = 0;
+
+    // ----------------------------------------------------
+    // Canvas & Force Physics Engine
+    // ----------------------------------------------------
+    const canvas = document.getElementById('graphCanvas');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+    let scale = 1;
+    let panX = 0, panY = 0;
+    let isDragging = false;
+    let dragNode = null;
+    let dragStartX = 0, dragStartY = 0;
+
+    function resizeCanvas() {
+      const parent = canvas.parentElement;
+      width = parent.clientWidth;
+      height = parent.clientHeight;
+      canvas.width = width * window.devicePixelRatio;
+      canvas.height = height * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // Physics Simulation Loop
+    function simulatePhysics() {
+      const current = SCENARIOS[currentScenarioIdx];
+
+      // Simple spring and repulsion
+      for (let i = 0; i < GRAPH_DATA.nodes.length; i++) {
+        for (let j = i + 1; j < GRAPH_DATA.nodes.length; j++) {
+          const n1 = GRAPH_DATA.nodes[i];
+          const n2 = GRAPH_DATA.nodes[j];
+          let dx = n2.x - n1.x;
+          let dy = n2.y - n1.y;
+          let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          if (dist < 180) {
+            let force = (180 - dist) / 180 * 0.4;
+            let fx = (dx / dist) * force;
+            let fy = (dy / dist) * force;
+            if (n1 !== dragNode) { n1.x -= fx; n1.y -= fy; }
+            if (n2 !== dragNode) { n2.x += fx; n2.y += fy; }
+          }
+        }
+      }
+
+      // Link attraction
+      GRAPH_DATA.links.forEach(l => {
+        const s = typeof l.source === 'object' ? l.source : GRAPH_DATA.nodes.find(n => n.id === l.source);
+        const t = typeof l.target === 'object' ? l.target : GRAPH_DATA.nodes.find(n => n.id === l.target);
+        if (!s || !t) return;
+        let dx = t.x - s.x;
+        let dy = t.y - s.y;
+        let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        let targetDist = 140;
+        let force = (dist - targetDist) * 0.003;
+        let fx = (dx / dist) * force;
+        let fy = (dy / dist) * force;
+        if (s !== dragNode) { s.x += fx; s.y += fy; }
+        if (t !== dragNode) { t.x -= fx; t.y -= fy; }
+      });
+    }
+
+    // Render Function
+    function renderGraph() {
+      simulatePhysics();
+      ctx.clearRect(0, 0, width, height);
+      ctx.save();
+      ctx.translate(panX, panY);
+      ctx.scale(scale, scale);
+
+      const scenario = SCENARIOS[currentScenarioIdx];
+
+      // Draw Links
+      GRAPH_DATA.links.forEach(l => {
+        const s = typeof l.source === 'object' ? l.source : GRAPH_DATA.nodes.find(n => n.id === l.source);
+        const t = typeof l.target === 'object' ? l.target : GRAPH_DATA.nodes.find(n => n.id === l.target);
+        if (!s || !t) return;
+
+        const isLinkActive = scenario.activeLinks.includes(`${s.id}-${t.id}`) || scenario.activeLinks.includes(`${t.id}-${s.id}`);
+
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(t.x, t.y);
+
+        if (isLinkActive) {
+          ctx.strokeStyle = '#00f2fe';
+          ctx.lineWidth = 3;
+          ctx.shadowColor = 'rgba(0, 242, 254, 0.8)';
+          ctx.shadowBlur = 10;
+        } else {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+          ctx.lineWidth = 1;
+          ctx.shadowBlur = 0;
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // Draw Relation Label on Midpoint
+        const midX = (s.x + t.x) / 2;
+        const midY = (s.y + t.y) / 2;
+        ctx.font = '9px Fira Code';
+        ctx.fillStyle = isLinkActive ? '#38bdf8' : 'rgba(255, 255, 255, 0.35)';
+        ctx.fillText(`[:${l.label}]`, midX - 20, midY - 4);
+      });
+
+      // Draw Nodes
+      GRAPH_DATA.nodes.forEach(n => {
+        const isActive = scenario.activeHops.includes(n.id);
+
+        // Glow ring for active hop
+        if (isActive) {
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.radius + 6, 0, Math.PI * 2);
+          ctx.strokeStyle = '#00f2fe';
+          ctx.lineWidth = 2;
+          ctx.shadowColor = 'rgba(0, 242, 254, 0.9)';
+          ctx.shadowBlur = 15;
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
+
+        // Main Node Body
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+        ctx.fillStyle = n.color;
+        ctx.shadowColor = n.color;
+        ctx.shadowBlur = isActive ? 12 : 4;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Node Inner Border
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Node Label
+        ctx.font = 'bold 11px Pretendard';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.fillText(n.name, n.x, n.y + n.radius + 14);
+
+        // Type Tag
+        ctx.font = '9px Fira Code';
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fillText(`<${n.type}>`, n.x, n.y + n.radius + 25);
+      });
+
+      ctx.restore();
+      requestAnimationFrame(renderGraph);
+    }
+
+    // ----------------------------------------------------
+    // User Interactions (Drag, Zoom, Pan)
+    // ----------------------------------------------------
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = (e.clientX - rect.left - panX) / scale;
+      const mouseY = (e.clientY - rect.top - panY) / scale;
+
+      // Find clicked node
+      dragNode = GRAPH_DATA.nodes.find(n => {
+        const d = Math.hypot(n.x - mouseX, n.y - mouseY);
+        return d <= n.radius + 5;
+      });
+
+      if (!dragNode) {
+        isDragging = true;
+        dragStartX = e.clientX - panX;
+        dragStartY = e.clientY - panY;
+      }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      if (dragNode) {
+        dragNode.x = (e.clientX - rect.left - panX) / scale;
+        dragNode.y = (e.clientY - rect.top - panY) / scale;
+      } else if (isDragging) {
+        panX = e.clientX - dragStartX;
+        panY = e.clientY - dragStartY;
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      dragNode = null;
+      isDragging = false;
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+      scale = Math.min(Math.max(0.5, scale * zoomFactor), 2.5);
+    });
+
+    function zoomIn() { scale = Math.min(scale * 1.2, 2.5); }
+    function zoomOut() { scale = Math.max(scale * 0.8, 0.5); }
+    function resetView() { scale = 1; panX = 0; panY = 0; }
+
+    // ----------------------------------------------------
+    // Scenario Controller
+    // ----------------------------------------------------
+    function loadScenario(idx) {
+      currentScenarioIdx = idx;
+      const s = SCENARIOS[idx];
+
+      // Update Active Button
+      document.querySelectorAll('.preset-btn').forEach((b, i) => {
+        b.classList.toggle('active', i === idx);
+      });
+
+      document.getElementById('userQueryInput').value = s.query;
+      document.getElementById('cypherConsole').textContent = s.cypher;
+      document.getElementById('vectorResultText').innerHTML = s.vector;
+      document.getElementById('graphResultText').innerHTML = s.graph;
+
+      // Update Hop Path
+      const hopDisplay = document.getElementById('hopPathDisplay');
+      hopDisplay.innerHTML = s.hops.map(item => {
+        if (item.startsWith('-[')) {
+          return `<span class="hop-arrow">${item}</span>`;
+        } else if (item === '&&') {
+          return `<span class="hop-arrow" style="color:#ef4444;">${item}</span>`;
+        } else {
+          return `<span class="hop-node">${item}</span>`;
+        }
+      }).join('');
+
+      // Add MCP Log
+      const logContainer = document.getElementById('mcpLogContainer');
+      const timeStr = new Date().toLocaleTimeString();
+      logContainer.innerHTML = `
+        <div class="mcp-log-entry in">[${timeStr} IN] {"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "query_graphrag", "call": "${s.mcpAction}"}}</div>
+        <div class="mcp-log-entry out">[${timeStr} OUT] {"jsonrpc": "2.0", "result": {"hops": ${s.activeHops.length}, "nodes": ${JSON.stringify(s.activeHops)}, "status": "VERIFIED_200"}}</div>
+      ` + logContainer.innerHTML;
+
+      // Update HUD stats
+      document.getElementById('graphStats').textContent = 
+        `노드: 14개 | 관계: 18개 | 활성 다중홉 추론: ${s.activeHops.length}개 노드 연쇄 감지됨`;
+    }
+
+    function runGraphRAGInference() {
+      // Rotate or refresh scenario
+      loadScenario((currentScenarioIdx + 1) % SCENARIOS.length);
+    }
+
+    // Initialize
+    window.addEventListener('DOMContentLoaded', () => {
+      resizeCanvas();
+      loadScenario(0);
+      renderGraph();
+    });
+  </script>
+</body>
+</html>

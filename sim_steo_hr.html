@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STEO 지능형 HR-Tech & AI 생산성 평가 시뮬레이터 | DMDG Live Lab 30</title>
+  <meta name="description" content="엔터프라이즈 생성형 AI 도입에 따른 토큰 소비 효율(TIR), 태스크 단축률(TTA), 무사유 복붙 감지(CTS) 및 A.C.E.S 육각형 역량 지능형 인사고과 시뮬레이터">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Outfit:wght@400;600;700;800&family=Pretendard:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-dark: #07090e;
+      --bg-card: rgba(13, 19, 33, 0.88);
+      --bg-card-hover: rgba(22, 32, 54, 0.95);
+      --border-color: rgba(56, 189, 248, 0.2);
+      --border-glow: rgba(0, 242, 254, 0.5);
+      --cyan-neon: #00f2fe;
+      --cyan-glow: rgba(0, 242, 254, 0.35);
+      --amber-neon: #f59e0b;
+      --emerald-neon: #10b981;
+      --purple-neon: #a855f7;
+      --rose-neon: #f43f5e;
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      --text-dim: #64748b;
+      --font-sans: 'Pretendard', -apple-system, sans-serif;
+      --font-code: 'Fira Code', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: radial-gradient(circle at 50% 0%, #0f172a 0%, var(--bg-dark) 75%);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    header {
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: blur(16px);
+      background: rgba(7, 9, 14, 0.88);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--amber-neon);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      transition: all 0.2s ease;
+    }
+    .brand-back:hover {
+      background: rgba(245, 158, 11, 0.2);
+      transform: translateX(-2px);
+    }
+
+    .brand-title {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #ffffff, var(--cyan-neon));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .badge-hub {
+      background: rgba(0, 242, 254, 0.12);
+      border: 1px solid var(--border-glow);
+      color: var(--cyan-neon);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-family: var(--font-code);
+    }
+
+    .header-links {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-btn {
+      color: var(--text-sub);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.03);
+      transition: all 0.2s;
+    }
+    .nav-btn:hover {
+      color: #fff;
+      border-color: var(--cyan-neon);
+      background: rgba(0, 242, 254, 0.1);
+    }
+    .nav-btn.primary {
+      color: #07090e;
+      background: linear-gradient(135deg, var(--cyan-neon), #38bdf8);
+      border: none;
+      font-weight: 700;
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px 20px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Hero Banner */
+    .hero-banner {
+      background: linear-gradient(135deg, rgba(13, 19, 33, 0.95), rgba(30, 41, 59, 0.6));
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 24px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-banner::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0; width: 300px; height: 100%;
+      background: radial-gradient(circle at right, rgba(0, 242, 254, 0.15), transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-content h1 {
+      font-size: 26px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .hero-content p {
+      color: var(--text-sub);
+      font-size: 14px;
+      line-height: 1.6;
+      max-width: 780px;
+    }
+
+    /* Mode Navigation Tabs */
+    .tab-nav {
+      display: flex;
+      gap: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 8px;
+      margin-top: 8px;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-sub);
+      font-size: 15px;
+      font-weight: 700;
+      padding: 10px 18px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tab-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .tab-btn.active {
+      color: var(--cyan-neon);
+      background: rgba(0, 242, 254, 0.12);
+      border: 1px solid var(--border-glow);
+    }
+
+    /* Grid Layout */
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 24px;
+    }
+    @media (max-width: 1024px) {
+      .grid-2col { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 22px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.36);
+    }
+
+    .card-title {
+      font-size: 17px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .card-title .icon-text {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Form Controls */
+    .form-group {
+      margin-bottom: 18px;
+    }
+    .form-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-sub);
+      margin-bottom: 6px;
+    }
+    .form-label .val-tag {
+      color: var(--cyan-neon);
+      font-family: var(--font-code);
+      font-weight: 700;
+    }
+
+    .form-control-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 4px;
+      outline: none;
+      accent-color: var(--cyan-neon);
+      cursor: pointer;
+    }
+
+    select, input[type="text"], input[type="number"] {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: var(--font-sans);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    select:focus, input:focus {
+      border-color: var(--cyan-neon);
+    }
+
+    /* KPI Cards Row */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .kpi-box {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-box.highlight {
+      border-color: var(--cyan-glow);
+      background: rgba(0, 242, 254, 0.05);
+    }
+    .kpi-title {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-bottom: 4px;
+    }
+    .kpi-val {
+      font-size: 24px;
+      font-weight: 800;
+      font-family: var(--font-code);
+      color: #fff;
+    }
+    .kpi-val.cyan { color: var(--cyan-neon); }
+    .kpi-val.amber { color: var(--amber-neon); }
+    .kpi-val.emerald { color: var(--emerald-neon); }
+    .kpi-val.rose { color: var(--rose-neon); }
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    /* Evaluation Grade Badge */
+    .grade-display {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+      border: 2px solid var(--border-glow);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .grade-badge {
+      font-size: 38px;
+      font-weight: 900;
+      font-family: var(--font-code);
+      width: 64px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 14px;
+      background: rgba(0, 242, 254, 0.15);
+      color: var(--cyan-neon);
+      border: 1px solid var(--cyan-neon);
+      text-shadow: 0 0 16px var(--cyan-glow);
+    }
+    .grade-desc {
+      flex: 1;
+      padding-left: 18px;
+    }
+    .grade-name {
+      font-size: 17px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .grade-summary {
+      font-size: 13px;
+      color: var(--text-sub);
+      line-height: 1.4;
+    }
+
+    /* Radar Canvas Container */
+    .radar-wrapper {
+      position: relative;
+      width: 100%;
+      height: 320px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas#radarCanvas {
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    /* Warning Banner */
+    .alert-banner {
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 13px;
+      line-height: 1.5;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .alert-banner.warning {
+      background: rgba(244, 63, 94, 0.12);
+      border: 1px solid rgba(244, 63, 94, 0.4);
+      color: #fecdd3;
+    }
+    .alert-banner.info {
+      background: rgba(0, 242, 254, 0.08);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      color: #bae6fd;
+    }
+
+    /* Data Table */
+    .custom-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+    .custom-table th {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-sub);
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .custom-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+    }
+    .custom-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Badge Tags */
+    .tag {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: var(--font-code);
+    }
+    .tag.s { background: rgba(0, 242, 254, 0.2); color: var(--cyan-neon); border: 1px solid var(--cyan-neon); }
+    .tag.a { background: rgba(16, 185, 129, 0.2); color: var(--emerald-neon); }
+    .tag.b { background: rgba(245, 158, 11, 0.2); color: var(--amber-neon); }
+    .tag.c { background: rgba(168, 85, 247, 0.2); color: var(--purple-neon); }
+    .tag.d { background: rgba(244, 63, 94, 0.2); color: var(--rose-neon); }
+
+    /* Button Actions */
+    .btn {
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--cyan-neon), #0284c7);
+      color: #07090e;
+    }
+    .btn-primary:hover {
+      box-shadow: 0 0 16px var(--cyan-glow);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Formula Box */
+    .math-callout {
+      background: rgba(15, 23, 42, 0.7);
+      border-left: 3px solid var(--cyan-neon);
+      padding: 12px 16px;
+      border-radius: 0 8px 8px 0;
+      font-size: 12px;
+      font-family: var(--font-code);
+      color: var(--text-sub);
+      margin-top: 14px;
+      line-height: 1.6;
+    }
+
+    footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 24px 20px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-dim);
+      background: rgba(7, 9, 14, 0.95);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="brand-group">
+      <a href="./index.html" class="brand-back">
+        <span>◀</span> 포털 홈
+      </a>
+      <span class="badge-hub">LIVE LAB 30</span>
+      <span class="brand-title">STEO 지능형 HR-Tech &amp; AI 생산성 시뮬레이터</span>
+    </div>
+    <div class="header-links">
+      <a href="./books.html" class="nav-btn">📚 위키북스 서재</a>
+      <a href="./novel_boiled_frog_07.html" class="nav-btn" target="_blank">📖 소설 《테헤란로》</a>
+      <a href="https://wikidocs.net/book/22014" class="nav-btn primary" target="_blank" rel="noopener">📘 Book 22014 교재 원문</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero Banner -->
+    <section class="hero-banner">
+      <div class="hero-content">
+        <h1>⚖️ AI Boiled Frog 탈피: STEO 지능형 HR-Tech 시뮬레이터</h1>
+        <p>
+          "단순히 토큰을 많이 썼다고 일을 잘한 것일까?"<br>
+          프롬프트 압축 효율(<strong>TIR</strong>), 업무 속도 단축률(<strong>TTA</strong>), 그리고 무사유 복붙을 감지하는 비판적 사유 가점(<strong>CTS</strong>)을 
+          직접 조작하여 사원의 <strong>A.C.E.S 육각형 역량</strong>과 <strong>STEO 종합 인사고과 등급</strong>을 실시간 판정합니다.
+        </p>
+        <div class="tab-nav">
+          <button class="tab-btn active" id="tabBtn-personal" onclick="switchView('personal')">👤 사원 개인 역량 진단 (Personal View)</button>
+          <button class="tab-btn" id="tabBtn-admin" onclick="switchView('admin')">🏢 전사 거버넌스 &amp; 100인 모의 시뮬레이션 (Executive View)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 1: Personal Diagnostic Mode -->
+    <div id="view-personal" class="grid-2col">
+      <!-- Left: Interactive Sliders & Inputs -->
+      <section class="card">
+        <div class="card-title">
+          <div class="icon-text">
+            <span>⚙️</span>
+            <span>사원 태스크 &amp; LLM 토큰 로그 파라미터 조작</span>
+          </div>
+          <span style="font-size:12px; color:var(--text-sub);">실시간 연산 모드</span>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">
+            <span>대상 사원 프로필</span>
+          </div>
+          <div class="form-control-row">
+            <select id="userRole" onchange="applyPreset(this.value)">
+              <option value="preset_orchestrator">김도현 대리 (프롬프트 오케스트레이터, DX팀)</option>
+              <option value="preset_copypaste">박지훈 사원 (무사유 단순 복붙 위험군, 기획팀)</option>
+              <option value="preset_junior">이하은 인턴 (주니어 개발자, AI 리스킬링 대상)</option>
+              <option value="preset_custom">직접 수치 입력 (Custom)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Task Difficulty W -->
+        <div class="form-group">
+          <div class="form-label">
+            <span>과제 난이도 가중치 ($W_{\text{difficulty}}$)</span>
+            <span class="val-tag" id="val-w">2.0</span>
+          </div>
+          <input type="range" id="input-w" min="1.0" max="3.0" step="0.1" value="2.0" oninput="calculateSTEO()">
+        </div>
+
+        <!-- Consumed Tokens -->
+        <div class="form-group">
+          <div class="form-label">
+            <span>소비 토큰량 ($\text{Consumed Tokens}$)</span>
+            <span class="val-tag" id="val-tokens">650 토큰</span>
+          </div>
+          <input type="range" id="input-tokens" min="0" max="15000" step="50" value="650" oninput="calculateSTEO()">
+        </div>
+
+        <!-- Output Quality Q -->
+        <div class="form-group">
+          <div class="form-label">
+            <span>최종 결과물 정량/품질 평가 ($Q_{\text{output}}$, 1~5점)</span>
+            <span class="val-tag" id="val-q">4.5 점</span>
+          </div>
+          <input type="range" id="input-q" min="1.0" max="5.0" step="0.1" value="4.5" oninput="calculateSTEO()">
+        </div>
+
+        <!-- Time Turnaround (Baseline vs With AI) -->
+        <div class="form-group">
+          <div class="form-label">
+            <span>과업 소요 시간 (AI 활용 시간 / 표준 기준선)</span>
+            <span class="val-tag" id="val-time">60분 / 180분</span>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <input type="range" id="input-time" min="10" max="240" step="5" value="60" oninput="calculateSTEO()">
+          </div>
+        </div>
+
+        <!-- Levenshtein Similarity (Copy-Paste) -->
+        <div class="form-group">
+          <div class="form-label">
+            <span>AI 원문 vs 인간 최종본 유사도 (단순 복붙률)</span>
+            <span class="val-tag" id="val-sim">42 % (건전한 튜닝)</span>
+          </div>
+          <input type="range" id="input-sim" min="10" max="100" step="1" value="42" oninput="calculateSTEO()">
+        </div>
+
+        <!-- Self-Reflective Tuning Count -->
+        <div class="form-group">
+          <div class="form-label">
+            <span>반성적 프롬프팅(Self-Reflective Tuning) 횟수</span>
+            <span class="val-tag" id="val-tuning">3 회</span>
+          </div>
+          <input type="range" id="input-tuning" min="0" max="5" step="1" value="3" oninput="calculateSTEO()">
+        </div>
+
+        <!-- Mathematical Callout -->
+        <div class="math-callout">
+          <strong>수식 검증 완료 (Chapter 14 &amp; 16)</strong><br>
+          • $\text{TIR} = \dfrac{W \times Q}{\ln(\text{Tokens} + 2.0)}$ (분모 0 오류 방지 $\epsilon=2.0$ 적용)<br>
+          • $\text{TTA} = \left(1 - \dfrac{\text{Time}_{\text{AI}}}{\text{Time}_{\text{base}}}\right) \times 100\%$<br>
+          • $\text{CTS} = 100 - \text{Penalty}_{\text{Similarity}} + \text{Bonus}_{\text{Tuning}}$
+        </div>
+      </section>
+
+      <!-- Right: STEO Diagnosis & Radar Visualizer -->
+      <section class="card">
+        <div class="card-title">
+          <div class="icon-text">
+            <span>📊</span>
+            <span>STEO 종합 인사고과 &amp; A.C.E.S 역량 진단</span>
+          </div>
+          <span class="tag s" id="gradeTag">S 등급</span>
+        </div>
+
+        <!-- Grade Display Banner -->
+        <div class="grade-display">
+          <div class="grade-badge" id="displayBadge">S</div>
+          <div class="grade-desc">
+            <div class="grade-name" id="displayName">마스터 오케스트레이터 (Master Orchestrator)</div>
+            <div class="grade-summary" id="displaySummary">
+              적은 토큰으로 최고 품질의 결과물을 이끌어내며, 비판적 사유를 통해 AI의 환각을 주도적으로 통제하고 있습니다.
+            </div>
+          </div>
+        </div>
+
+        <!-- Warning Callout when Copy-Paste Detected -->
+        <div class="alert-banner warning" id="copyAlert" style="display:none;">
+          <span>🚨</span>
+          <div>
+            <strong>[경고] 무사유 단순 복붙(Zero-Thinking) 패턴 감지!</strong><br>
+            AI 생성 텍스트와의 유사도가 95%를 초과하여 비판적 사유 가점(CTS) 감점 및 리스킬링 교육 대상자로 자동 분류됩니다.
+          </div>
+        </div>
+
+        <!-- 3 KPI Cards -->
+        <div class="kpi-row">
+          <div class="kpi-box highlight">
+            <div class="kpi-title">TIR (토큰 압축 효율)</div>
+            <div class="kpi-val cyan" id="kpi-tir">1.38</div>
+            <div class="kpi-sub" id="kpi-tir-sub">상위 4.8% (우수)</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-title">TTA (시간 단축률)</div>
+            <div class="kpi-val emerald" id="kpi-tta">66.7%</div>
+            <div class="kpi-sub" id="kpi-tta-sub">120분 절감</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-title">CTS (사유 가점)</div>
+            <div class="kpi-val amber" id="kpi-cts">92.0</div>
+            <div class="kpi-sub" id="kpi-cts-sub">반성적 튜닝 +12</div>
+          </div>
+        </div>
+
+        <!-- Radar Canvas -->
+        <div style="font-size:13px; font-weight:700; color:var(--text-sub); margin-bottom:8px; display:flex; justify-content:space-between;">
+          <span>A.C.E.S 6대 핵심 역량 육각형 차트</span>
+          <span style="color:var(--cyan-neon); font-family:var(--font-code);">Dynamic Canvas</span>
+        </div>
+        <div class="radar-wrapper">
+          <canvas id="radarCanvas" width="340" height="300"></canvas>
+        </div>
+
+        <!-- Recommended Job Match -->
+        <div style="margin-top:16px; padding:12px 14px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+          <div style="font-size:12px; color:var(--text-sub); margin-bottom:4px;">🎯 추천 AI 직무 (코사인 유사도 기반 매핑)</div>
+          <div style="font-size:14px; font-weight:800; color:#fff;" id="matchRole">
+            프롬프트 아키텍트 &amp; AI 워크플로우 엔지니어 (매합도: 96.4%)
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- VIEW 2: Executive & Enterprise Governance Mode (Chapter 17 & 19) -->
+    <div id="view-admin" class="grid-2col" style="display:none;">
+      <!-- Left: Enterprise Overview & 100-User Sim Trigger -->
+      <section class="card">
+        <div class="card-title">
+          <div class="icon-text">
+            <span>🏢</span>
+            <span>전사 LiteLLM 게이트웨이 &amp; 100인 트래픽 시뮬레이터</span>
+          </div>
+          <button class="btn btn-primary" onclick="generateSimData()" style="padding:6px 14px; font-size:12px;">
+            <span>🔄 100인 모의 트래픽 재생성</span>
+          </button>
+        </div>
+
+        <p style="font-size:13px; color:var(--text-sub); line-height:1.6; margin-bottom:16px;">
+          사내 LiteLLM 프록시 게이트웨이(Port 4000)를 통과한 임직원 100명의 실시간 토큰 요청을 비동기 수집하여, 
+          부서별 API 비용 ROI와 등급 분포(Bell Curve), 고위험 단순 복붙자를 즉시 추출합니다.
+        </p>
+
+        <!-- Department ROI Summary -->
+        <div style="font-size:14px; font-weight:700; margin-bottom:10px;">📊 부서별 LLM 투자 대비 가치 창출(ROI) 현황</div>
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>부서명</th>
+              <th>활성 사원</th>
+              <th>월간 토큰 비용</th>
+              <th>시간 절감 가치</th>
+              <th>ROI 배수</th>
+            </tr>
+          </thead>
+          <tbody id="deptTableBody">
+            <!-- Injected by JS -->
+          </tbody>
+        </table>
+
+        <!-- Bell Curve Grade Distribution -->
+        <div style="margin-top:24px;">
+          <div style="font-size:14px; font-weight:700; margin-bottom:12px;">📈 전사 STEO 5대 고과 등급 분포 (정규분포 기준선)</div>
+          <div style="display:flex; flex-direction:column; gap:8px;" id="gradeDistributionBars">
+            <!-- Injected by JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: Risk Alert & Reskilling List -->
+      <section class="card">
+        <div class="card-title">
+          <div class="icon-text">
+            <span>🚨</span>
+            <span>무사유 복붙(Zero-Thinking) 고위험군 &amp; 리스킬링 추천</span>
+          </div>
+          <span class="tag d" id="riskCountTag">3명 감지</span>
+        </div>
+
+        <div class="alert-banner warning">
+          <span>⚠️</span>
+          <div>
+            <strong>AI Boiled Frog 경고 상태</strong><br>
+            유사도 95% 이상으로 생각하는 힘을 잃어가고 있는 사원들에게 '반성적 프롬프팅 5원칙' 리스킬링 교육이 자동 권고되었습니다.
+          </div>
+        </div>
+
+        <div style="font-size:13px; font-weight:700; margin-bottom:8px; color:var(--text-sub);">
+          📋 집중 코칭 대상 사원 리스트 (실시간 이상치 탐지)
+        </div>
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>사번</th>
+              <th>부서</th>
+              <th>유사도</th>
+              <th>TIR</th>
+              <th>추천 조치</th>
+            </tr>
+          </thead>
+          <tbody id="riskTableBody">
+            <!-- Injected by JS -->
+          </tbody>
+        </table>
+
+        <div style="margin-top:20px; padding:14px; background:rgba(0,242,254,0.05); border:1px solid rgba(0,242,254,0.2); border-radius:10px;">
+          <div style="font-size:13px; font-weight:800; color:var(--cyan-neon); margin-bottom:4px;">
+            📘 교재 및 실습 소스코드 연동 안내
+          </div>
+          <p style="font-size:12px; color:var(--text-sub); line-height:1.5;">
+            본 시뮬레이터의 백엔드 로직은 위키독스 정규 교재 <strong>[제5모듈 캡스톤 프로젝트]</strong>에 수록된 
+            <code>05_steo_metrics_engine.py</code> 및 <code>06_hr_dashboard.py</code> 코드로 100% 동일하게 구현 가능합니다.
+          </p>
+          <div style="margin-top:10px;">
+            <a href="https://wikidocs.net/book/22014" target="_blank" class="nav-btn primary" style="font-size:12px; display:inline-block;">
+              교재 전체 소스코드 보러가기 ➔
+            </a>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div style="max-width:1200px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+      <div>
+        <strong>DMDG Live Lab 30</strong> • 엔터프라이즈 생성형 AI 생산성 평가와 지능형 HR-Tech 시스템 시뮬레이터
+      </div>
+      <div>
+        연동 도서: <a href="https://wikidocs.net/book/22014" target="_blank" style="color:var(--cyan-neon); text-decoration:none;">위키독스 Book 22014</a> | 
+        소설: <a href="https://wikidocs.net/blog/36023" target="_blank" style="color:var(--amber-neon); text-decoration:none;">끓는 물 속의 테헤란로</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Presets
+    const presets = {
+      preset_orchestrator: { w: 2.5, tokens: 620, q: 4.8, time: 50, sim: 38, tuning: 4 },
+      preset_copypaste:    { w: 1.5, tokens: 6800, q: 2.4, time: 20, sim: 98, tuning: 0 },
+      preset_junior:       { w: 1.8, tokens: 3200, q: 3.5, time: 110, sim: 75, tuning: 1 },
+      preset_custom:       { w: 2.0, tokens: 1200, q: 4.0, time: 70, sim: 55, tuning: 2 }
+    };
+
+    function applyPreset(key) {
+      if (!presets[key]) return;
+      const p = presets[key];
+      document.getElementById('input-w').value = p.w;
+      document.getElementById('input-tokens').value = p.tokens;
+      document.getElementById('input-q').value = p.q;
+      document.getElementById('input-time').value = p.time;
+      document.getElementById('input-sim').value = p.sim;
+      document.getElementById('input-tuning').value = p.tuning;
+      calculateSTEO();
+    }
+
+    function switchView(mode) {
+      const personalView = document.getElementById('view-personal');
+      const adminView = document.getElementById('view-admin');
+      const btnP = document.getElementById('tabBtn-personal');
+      const btnA = document.getElementById('tabBtn-admin');
+
+      if (mode === 'personal') {
+        personalView.style.display = 'grid';
+        adminView.style.display = 'none';
+        btnP.classList.add('active');
+        btnA.classList.remove('active');
+        drawRadarChart();
+      } else {
+        personalView.style.display = 'none';
+        adminView.style.display = 'grid';
+        btnP.classList.remove('active');
+        btnA.classList.add('active');
+        if (!window.hasSimData) {
+          generateSimData();
+        }
+      }
+    }
+
+    // Core Calculation Logic
+    function calculateSTEO() {
+      const w = parseFloat(document.getElementById('input-w').value);
+      const tokens = parseInt(document.getElementById('input-tokens').value);
+      const q = parseFloat(document.getElementById('input-q').value);
+      const timeWithAI = parseInt(document.getElementById('input-time').value);
+      const baselineTime = 180; // 3 hours fixed baseline
+      const sim = parseInt(document.getElementById('input-sim').value);
+      const tuning = parseInt(document.getElementById('input-tuning').value);
+
+      // UI Labels
+      document.getElementById('val-w').innerText = w.toFixed(1);
+      document.getElementById('val-tokens').innerText = tokens.toLocaleString() + ' 토큰';
+      document.getElementById('val-q').innerText = q.toFixed(1) + ' 점';
+      document.getElementById('val-time').innerText = `${timeWithAI}분 / ${baselineTime}분`;
+      document.getElementById('val-sim').innerText = `${sim}% ${sim >= 95 ? '(🚨 단순 복붙)' : sim <= 45 ? '(건전한 사유)' : '(일반 편집)'}`;
+      document.getElementById('val-tuning').innerText = `${tuning} 회`;
+
+      // 1. TIR Calculation with offset epsilon = 2.0
+      let tir = 0;
+      if (tokens > 0) {
+        tir = (w * q) / Math.log(tokens + 2.0);
+      }
+      tir = Math.max(0, tir);
+
+      // 2. TTA Calculation
+      let tta = ((baselineTime - timeWithAI) / baselineTime) * 100;
+
+      // 3. CTS Calculation
+      let cts = 80;
+      if (sim >= 95) {
+        cts -= (sim - 90) * 8; // Heavy penalty
+      } else if (sim >= 80) {
+        cts -= (sim - 75) * 2;
+      } else {
+        cts += (80 - sim) * 0.3; // Bonus for independent thinking
+      }
+      cts += tuning * 4; // Bonus for self-reflective tuning
+      cts = Math.min(100, Math.max(10, cts));
+
+      // Update KPIs
+      document.getElementById('kpi-tir').innerText = tir.toFixed(2);
+      document.getElementById('kpi-tta').innerText = tta.toFixed(1) + '%';
+      document.getElementById('kpi-cts').innerText = cts.toFixed(1);
+
+      document.getElementById('kpi-tta-sub').innerText = `${baselineTime - timeWithAI}분 절감`;
+      document.getElementById('kpi-cts-sub').innerText = tuning > 0 ? `반성적 튜닝 +${tuning*4}` : '튜닝 이력 없음';
+
+      // Copy Alert Trigger
+      const copyAlert = document.getElementById('copyAlert');
+      if (sim >= 95) {
+        copyAlert.style.display = 'flex';
+      } else {
+        copyAlert.style.display = 'none';
+      }
+
+      // Grade Determination (Combined Score)
+      // TIR norm (0~3 -> 0~100), TTA (0~80 -> 0~100), CTS (0~100)
+      const tirScore = Math.min(100, (tir / 2.2) * 100);
+      const ttaScore = Math.min(100, Math.max(0, tta * 1.25));
+      const totalScore = (tirScore * 0.4) + (ttaScore * 0.3) + (cts * 0.3);
+
+      let grade = 'B';
+      let title = '실무 프랙티셔너 (Practitioner)';
+      let summary = 'AI 도구를 통상적인 업무 보조용으로 안정적으로 활용하고 있습니다.';
+      let tagClass = 'tag b';
+
+      if (sim >= 95 || totalScore < 45) {
+        grade = 'D';
+        title = '무사유 복붙 위험군 (Risk / Reskilling)';
+        summary = '생각의 주도권을 AI에 내어준 Boiled Frog 위험군입니다. 프롬프트 리스킬링 교육이 시급합니다.';
+        tagClass = 'tag d';
+      } else if (totalScore >= 88) {
+        grade = 'S';
+        title = '마스터 오케스트레이터 (Master Orchestrator)';
+        summary = '최소의 토큰으로 최고의 비즈니스 가치를 창출하며, AI의 환각을 주도적으로 통제하는 사내 롤모델입니다.';
+        tagClass = 'tag s';
+      } else if (totalScore >= 72) {
+        grade = 'A';
+        title = 'AI 리더 (AI Leader)';
+        summary = '주도적인 2차 튜닝을 통해 완성도 높은 결과물을 빠르게 도출하는 핵심 인재입니다.';
+        tagClass = 'tag a';
+      } else if (totalScore < 58) {
+        grade = 'C';
+        title = '주니어 어답터 (Junior Adopter)';
+        summary = 'AI 질의 횟수 대비 결과물 정제 능력이 다소 부족하여 추가적인 멘토링이 권장됩니다.';
+        tagClass = 'tag c';
+      }
+
+      const displayBadge = document.getElementById('displayBadge');
+      displayBadge.innerText = grade;
+      if (grade === 'S') displayBadge.style.color = 'var(--cyan-neon)';
+      else if (grade === 'A') displayBadge.style.color = 'var(--emerald-neon)';
+      else if (grade === 'B') displayBadge.style.color = 'var(--amber-neon)';
+      else if (grade === 'C') displayBadge.style.color = 'var(--purple-neon)';
+      else displayBadge.style.color = 'var(--rose-neon)';
+
+      document.getElementById('displayName').innerText = title;
+      document.getElementById('displaySummary').innerText = summary;
+      const gradeTag = document.getElementById('gradeTag');
+      gradeTag.className = tagClass;
+      gradeTag.innerText = grade + ' 등급';
+
+      // Radar Metrics
+      window.currentMetrics = {
+        autonomy: Math.min(100, Math.max(20, (100 - sim) * 1.1 + tuning * 5)),
+        creativity: Math.min(100, Math.max(25, q * 18 + tuning * 3)),
+        efficiency: Math.min(100, Math.max(20, ttaScore)),
+        synergy: Math.min(100, Math.max(30, (w * 25) + (grade === 'S' ? 20 : 10))),
+        reliability: Math.min(100, Math.max(15, (sim >= 95 ? 20 : 60 + q * 7))),
+        mastery: Math.min(100, Math.max(25, tirScore))
+      };
+
+      // Job Match
+      updateJobMatch(window.currentMetrics);
+
+      // Redraw Radar
+      drawRadarChart();
+    }
+
+    function updateJobMatch(m) {
+      const matchElem = document.getElementById('matchRole');
+      if (m.autonomy > 85 && m.mastery > 80) {
+        matchElem.innerHTML = '👑 <strong>엔터프라이즈 프롬프트 아키텍트</strong> (매칭률: 98.2%)';
+      } else if (m.efficiency > 80 && m.reliability > 75) {
+        matchElem.innerHTML = '⚡ <strong>AI 에이전트 &amp; 워크플로우 엔지니어</strong> (매칭률: 94.6%)';
+      } else if (m.creativity > 80) {
+        matchElem.innerHTML = '🎨 <strong>생성형 비즈니스 콘텐츠 디렉터</strong> (매칭률: 91.8%)';
+      } else if (m.autonomy < 40) {
+        matchElem.innerHTML = '⚠️ <strong>기초 프롬프트 엔지니어링 리스킬링 과정</strong> (매칭률: 99.0%)';
+      } else {
+        matchElem.innerHTML = '💼 <strong>스마트 도메인 분석가 (AI Practitioner)</strong> (매칭률: 88.5%)';
+      }
+    }
+
+    // HTML5 Canvas Radar Chart
+    function drawRadarChart() {
+      const canvas = document.getElementById('radarCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      const centerX = w / 2;
+      const centerY = h / 2;
+      const radius = Math.min(centerX, centerY) - 38;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const labels = ['자율성 (Autonomy)', '창의성 (Creativity)', '실행효율 (Efficiency)', '조직시너지 (Synergy)', '신뢰성 (Reliability)', '숙련도 (Mastery)'];
+      const metrics = window.currentMetrics || { autonomy: 80, creativity: 85, efficiency: 75, synergy: 70, reliability: 80, mastery: 85 };
+      const values = [metrics.autonomy, metrics.creativity, metrics.efficiency, metrics.synergy, metrics.reliability, metrics.mastery];
+
+      const sides = 6;
+      const angleStep = (Math.PI * 2) / sides;
+
+      // Draw Concentric Polygons
+      const levels = 4;
+      for (let level = 1; level <= levels; level++) {
+        const curR = (radius / levels) * level;
+        ctx.beginPath();
+        for (let i = 0; i < sides; i++) {
+          const angle = i * angleStep - Math.PI / 2;
+          const x = centerX + Math.cos(angle) * curR;
+          const y = centerY + Math.sin(angle) * curR;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      // Draw Radial Axis Lines & Labels
+      ctx.font = '10px Pretendard, sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      for (let i = 0; i < sides; i++) {
+        const angle = i * angleStep - Math.PI / 2;
+        const x = centerX + Math.cos(angle) * radius;
+        const y = centerY + Math.sin(angle) * radius;
+
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.stroke();
+
+        // Label Position
+        const labelR = radius + 22;
+        const lx = centerX + Math.cos(angle) * labelR;
+        const ly = centerY + Math.sin(angle) * labelR;
+        ctx.fillText(labels[i], lx, ly);
+      }
+
+      // Draw Data Polygon
+      ctx.beginPath();
+      for (let i = 0; i < sides; i++) {
+        const valR = (values[i] / 100) * radius;
+        const angle = i * angleStep - Math.PI / 2;
+        const x = centerX + Math.cos(angle) * valR;
+        const y = centerY + Math.sin(angle) * valR;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(0, 242, 254, 0.25)';
+      ctx.fill();
+      ctx.strokeStyle = '#00f2fe';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      // Draw Points
+      for (let i = 0; i < sides; i++) {
+        const valR = (values[i] / 100) * radius;
+        const angle = i * angleStep - Math.PI / 2;
+        const x = centerX + Math.cos(angle) * valR;
+        const y = centerY + Math.sin(angle) * valR;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#00f2fe';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+
+    // Enterprise 100-User Simulation (Chapter 17 & 19)
+    function generateSimData() {
+      window.hasSimData = true;
+      const depts = [
+        { name: 'DX추진본부', users: 28, cost: '$1,840', saved: '$9,200', roi: '5.0x' },
+        { name: '전략기획팀', users: 18, cost: '$1,120', saved: '$4,140', roi: '3.7x' },
+        { name: '데이터사이언스팀', users: 22, cost: '$2,310', saved: '$9,930', roi: '4.3x' },
+        { name: '인사운영팀', users: 14, cost: '$490', saved: '$1,470', roi: '3.0x' },
+        { name: '고객지원팀', users: 18, cost: '$780', saved: '$1,400', roi: '1.8x' }
+      ];
+
+      // Inject Dept Table
+      const tbody = document.getElementById('deptTableBody');
+      tbody.innerHTML = '';
+      depts.forEach(d => {
+        tbody.innerHTML += `
+          <tr>
+            <td><strong>${d.name}</strong></td>
+            <td>${d.users}명</td>
+            <td>${d.cost}</td>
+            <td style="color:var(--emerald-neon); font-weight:700;">${d.saved}</td>
+            <td><span class="tag a">${d.roi}</span></td>
+          </tr>
+        `;
+      });
+
+      // Grade Distribution (100 users)
+      const grades = [
+        { grade: 'S (Master)', count: 12, pct: '12%', color: 'var(--cyan-neon)' },
+        { grade: 'A (Leader)', count: 32, pct: '32%', color: 'var(--emerald-neon)' },
+        { grade: 'B (Practitioner)', count: 41, pct: '41%', color: 'var(--amber-neon)' },
+        { grade: 'C (Junior)', count: 11, pct: '11%', color: 'var(--purple-neon)' },
+        { grade: 'D (Risk)', count: 4, pct: '4%', color: 'var(--rose-neon)' }
+      ];
+
+      const barContainer = document.getElementById('gradeDistributionBars');
+      barContainer.innerHTML = '';
+      grades.forEach(g => {
+        barContainer.innerHTML += `
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;">
+              <span>${g.grade}</span>
+              <span style="font-family:var(--font-code); color:${g.color}; font-weight:700;">${g.count}명 (${g.pct})</span>
+            </div>
+            <div style="height:8px; background:rgba(255,255,255,0.06); border-radius:4px; overflow:hidden;">
+              <div style="width:${g.pct}; height:100%; background:${g.color}; border-radius:4px;"></div>
+            </div>
+          </div>
+        `;
+      });
+
+      // Risk List (Zero-Thinking Users)
+      const risks = [
+        { emp: 'EMP-1024', dept: '전략기획팀', sim: '98.4%', tir: '0.84', action: '반성적 프롬프팅 5원칙 과정' },
+        { emp: 'EMP-2048', dept: '고객지원팀', sim: '96.8%', tir: '0.91', action: '1:1 사내 AI 멘토링 인터뷰' },
+        { emp: 'EMP-3096', dept: '인사운영팀', sim: '95.5%', tir: '0.98', action: '표준 프롬프트 템플릿 재배포' },
+        { emp: 'EMP-4192', dept: 'DX추진본부', sim: '95.1%', tir: '1.02', action: '과업 난이도 재배정 권고' }
+      ];
+
+      const riskTbody = document.getElementById('riskTableBody');
+      riskTbody.innerHTML = '';
+      risks.forEach(r => {
+        riskTbody.innerHTML += `
+          <tr>
+            <td style="font-family:var(--font-code); font-weight:700; color:var(--cyan-neon);">${r.emp}</td>
+            <td>${r.dept}</td>
+            <td style="color:var(--rose-neon); font-weight:800;">${r.sim}</td>
+            <td style="font-family:var(--font-code);">${r.tir}</td>
+            <td><span class="tag d">${r.action}</span></td>
+          </tr>
+        `;
+      });
+
+      document.getElementById('riskCountTag').innerText = `${risks.length}명 감지`;
+    }
+
+    // Init on load
+    window.addEventListener('DOMContentLoaded', () => {
+      calculateSTEO();
+    });
+  </script>
+</body>
+</html>
+
